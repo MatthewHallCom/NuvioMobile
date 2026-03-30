@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { useRealtimeConfig } from '../hooks/useRealtimeConfig';
 
 import {
@@ -13,6 +13,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Alert,
 } from 'react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTranslation } from 'react-i18next';
@@ -50,6 +51,8 @@ import { useBottomSheetBackHandler } from '../hooks/useBottomSheetBackHandler';
 import { LOCALES } from '../constants/locales';
 import { useSimklIntegration } from '../hooks/useSimklIntegration';
 import SimklIcon from '../components/icons/SimklIcon';
+import { useDownloads } from '../contexts/DownloadsContext';
+import { offlineImageService } from '../services/offlineImageService';
 
 const { width } = Dimensions.get('window');
 const isTablet = width >= 768;
@@ -153,9 +156,40 @@ const SettingsScreen: React.FC = () => {
     { id: 'about', title: t('settings.about'), icon: 'info' },
     { id: 'developer', title: t('settings.developer'), icon: 'code' },
     { id: 'cache', title: t('settings.cache'), icon: 'database' },
+    { id: 'downloads', title: 'Downloads', icon: 'download' },
   ];
   const { settings, updateSetting } = useSettings();
+  const { downloads, removeDownload } = useDownloads();
   const [hasUpdateBadge, setHasUpdateBadge] = useState(false);
+
+  const storageUsed = useMemo(() => {
+    const bytes = downloads
+      .filter(d => d.status === 'completed')
+      .reduce((sum, d) => sum + (d.totalBytes || 0), 0);
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }, [downloads]);
+
+  const handleDeleteAllDownloads = useCallback(() => {
+    Alert.alert(
+      'Delete All Downloads',
+      'This will remove all downloaded videos and cached images. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            for (const d of downloads) {
+              await removeDownload(d.id);
+            }
+            await offlineImageService.deleteAllOfflineImages();
+          },
+        },
+      ]
+    );
+  }, [downloads, removeDownload]);
   const languageSheetRef = useRef<BottomSheetModal>(null);
   const { onChange, onDismiss } = useBottomSheetBackHandler();
   const insets = useSafeAreaInsets();
@@ -550,6 +584,38 @@ const SettingsScreen: React.FC = () => {
           </SettingsCard>
         ) : null;
 
+      case 'downloads':
+        return (
+          <SettingsCard title="DOWNLOADS" isTablet={isTablet}>
+            <SettingItem
+              title="WiFi Only Downloads"
+              description="Only download content when connected to WiFi"
+              icon="wifi"
+              renderControl={() => (
+                <CustomSwitch
+                  value={settings.wifiOnlyDownloads}
+                  onValueChange={(val) => updateSetting('wifiOnlyDownloads', val)}
+                />
+              )}
+              isTablet={isTablet}
+            />
+            <SettingItem
+              title="Storage Used"
+              description={storageUsed}
+              icon="hard-drive"
+              isTablet={isTablet}
+            />
+            <SettingItem
+              title="Delete All Downloads"
+              description="Remove all downloaded videos and cached images"
+              icon="trash-2"
+              onPress={handleDeleteAllDownloads}
+              isLast={true}
+              isTablet={isTablet}
+            />
+          </SettingsCard>
+        );
+
       case 'backup':
         return (
           <SettingsCard title={t('settings.backup_restore').toUpperCase()} isTablet={isTablet}>
@@ -854,6 +920,33 @@ const SettingsScreen: React.FC = () => {
                   )}
                 </SettingsCard>
               )}
+
+            {/* Downloads */}
+            <SettingsCard title="DOWNLOADS">
+              <SettingItem
+                title="WiFi Only Downloads"
+                description="Only download content when connected to WiFi"
+                icon="wifi"
+                renderControl={() => (
+                  <CustomSwitch
+                    value={settings.wifiOnlyDownloads}
+                    onValueChange={(val) => updateSetting('wifiOnlyDownloads', val)}
+                  />
+                )}
+              />
+              <SettingItem
+                title="Storage Used"
+                description={storageUsed}
+                icon="hard-drive"
+              />
+              <SettingItem
+                title="Delete All Downloads"
+                description="Remove all downloaded videos and cached images"
+                icon="trash-2"
+                onPress={handleDeleteAllDownloads}
+                isLast
+              />
+            </SettingsCard>
 
             {/* Cache - only if MDBList is set */}
             {mdblistKeySet && (

@@ -77,6 +77,7 @@ import BackdropGalleryScreen from '../screens/BackdropGalleryScreen';
 import BackupScreen from '../screens/BackupScreen';
 import ContinueWatchingSettingsScreen from '../screens/ContinueWatchingSettingsScreen';
 import ContributorsScreen from '../screens/ContributorsScreen';
+import OfflineShowDetailScreen from '../screens/OfflineShowDetailScreen';
 
 import {
   ContentDiscoverySettingsScreen,
@@ -224,6 +225,7 @@ export type RootStackParamList = {
   };
   ContinueWatchingSettings: undefined;
   Contributors: undefined;
+  OfflineShowDetail: { contentId: string };
 
   // New organized settings screens
   ContentDiscoverySettings: undefined;
@@ -1891,6 +1893,11 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
                   backgroundColor: currentTheme.colors.darkBackground,
                 },
               }}
+            />
+            <Stack.Screen
+              name="OfflineShowDetail"
+              component={OfflineShowDetailScreen}
+              options={{ headerShown: false }}
             />
         <Stack.Screen
           name="SyncSettings"

@@ -63,6 +63,7 @@ export interface AppSettings {
   introDbApiKey: string; // API Key for IntroDB submission
   // Downloads
   enableDownloads: boolean; // Show Downloads tab and enable saving streams
+  wifiOnlyDownloads: boolean; // Only download on WiFi (default true)
   // Theme settings
   themeId: string;
   customThemes: CustomThemeDef[];
@@ -155,6 +156,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   introDbApiKey: '',
   // Downloads
   enableDownloads: false,
+  wifiOnlyDownloads: true,
   useExternalPlayerForDownloads: false,
   // Theme defaults
   themeId: 'default',

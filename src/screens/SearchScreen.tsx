@@ -50,6 +50,8 @@ import { AddonSection } from '../components/search/AddonSection';
 import { DiscoverSection } from '../components/search/DiscoverSection';
 import { DiscoverBottomSheets } from '../components/search/DiscoverBottomSheets';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import OfflineBanner from '../components/common/OfflineBanner';
+import { useNetwork } from '../contexts/NetworkContext';
 
 const { width } = Dimensions.get('window');
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -75,6 +77,7 @@ const SearchScreen = () => {
   const inputRef = useRef<TextInput>(null);
   const insets = useSafeAreaInsets();
   const { currentTheme } = useTheme();
+  const { isConnected } = useNetwork();
   const liveSearchHandle = useRef<{ cancel: () => void; done: Promise<void> } | null>(null);
   const addonOrderRankRef = useRef<Record<string, number>>({});
   const isInitialMount = useRef(true);
@@ -760,7 +763,15 @@ const SearchScreen = () => {
       </ScreenHeader>
 
       <View style={styles.contentContainer}>
-        {searching && results.byAddon.length === 0 ? (
+        <OfflineBanner />
+        {!isConnected && query.trim().length > 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="wifi-off" size={48} color={currentTheme.colors.lightGray} />
+            <Text style={[styles.emptyText, { color: currentTheme.colors.white, marginTop: 12 }]}>
+              Search is unavailable offline
+            </Text>
+          </View>
+        ) : searching && results.byAddon.length === 0 ? (
           <View style={styles.emptyContainer}>
             <LoadingSpinner size="large" />
           </View>

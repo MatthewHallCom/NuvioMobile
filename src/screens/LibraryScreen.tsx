@@ -42,6 +42,7 @@ import { TraktLoadingSpinner } from '../components/common/TraktLoadingSpinner';
 import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from 'react-i18next';
 import { useScrollToTop } from '../contexts/ScrollToTopContext';
+import OfflineBanner from '../components/common/OfflineBanner';
 import { TMDBService } from '../services/tmdbService';
 
 interface LibraryItem extends StreamingContent {
@@ -1891,6 +1892,7 @@ const LibraryScreen = () => {
       />
 
       <View style={[styles.contentContainer, { backgroundColor: currentTheme.colors.darkBackground }]}>
+        <OfflineBanner />
         {!showTraktContent && !showSimklContent && (
           <ScrollView 
             horizontal 

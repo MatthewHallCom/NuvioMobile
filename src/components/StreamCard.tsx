@@ -37,6 +37,12 @@ interface StreamCardProps {
   providerName?: string;
   parentId?: string;
   parentImdbId?: string;
+  parentDescription?: string;
+  parentGenres?: string[];
+  parentRuntime?: number;
+  parentRating?: number;
+  parentBannerUrl?: string;
+  parentLogoUrl?: string;
 }
 
 const StreamCard = memo(({
@@ -58,7 +64,13 @@ const StreamCard = memo(({
   parentPosterUrl,
   providerName,
   parentId,
-  parentImdbId
+  parentImdbId,
+  parentDescription,
+  parentGenres,
+  parentRuntime,
+  parentRating,
+  parentBannerUrl,
+  parentLogoUrl,
 }: StreamCardProps) => {
   const { settings } = useSettings();
   const { startDownload } = useDownloads();
@@ -177,12 +189,18 @@ const StreamCard = memo(({
         // Pass metadata for progress tracking
         imdbId: parentImdbId || parent.imdbId || undefined,
         tmdbId: tmdbId,
+        description: parentDescription,
+        genres: parentGenres,
+        runtime: parentRuntime,
+        rating: parentRating,
+        bannerUrl: parentBannerUrl,
+        logoUrl: parentLogoUrl,
       });
       showAlert('Download Started', 'Your download has been added to the queue.');
     } catch (e: any) {
       showAlert('Download Failed', e.message || 'Could not start download.');
     }
-  }, [startDownload, stream.url, stream.headers, streamInfo.quality, showAlert, stream.name, stream.title, parentId, parentImdbId, parentTitle, parentType, parentSeason, parentEpisode, parentEpisodeTitle, parentPosterUrl, providerName]);
+  }, [startDownload, stream.url, stream.headers, streamInfo.quality, showAlert, stream.name, stream.title, parentId, parentImdbId, parentTitle, parentType, parentSeason, parentEpisode, parentEpisodeTitle, parentPosterUrl, providerName, parentDescription, parentGenres, parentRuntime, parentRating, parentBannerUrl, parentLogoUrl]);
 
   const isDebrid = streamInfo.isDebrid;
   return (

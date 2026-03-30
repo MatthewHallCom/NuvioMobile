@@ -34,6 +34,7 @@ import { SimklProvider } from './src/contexts/SimklContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { TrailerProvider } from './src/contexts/TrailerContext';
 import { DownloadsProvider } from './src/contexts/DownloadsContext';
+import { NetworkProvider } from './src/contexts/NetworkContext';
 import SplashScreen from './src/components/SplashScreen';
 import UpdatePopup from './src/components/UpdatePopup';
 import MajorUpdateOverlay from './src/components/MajorUpdateOverlay';
@@ -257,33 +258,35 @@ const ThemedApp = () => {
             },
           }}
         >
-          <DownloadsProvider>
-            <View style={[styles.container, { backgroundColor: currentTheme.colors.darkBackground }]}>
-              <StatusBar style="light" />
-              {!isAppReady && <SplashScreen onFinish={handleSplashComplete} />}
-              {shouldShowApp && <AppNavigator initialRouteName={initialRouteName} />}
-              <UpdatePopup
-                visible={showUpdatePopup}
-                updateInfo={updateInfo}
-                onUpdateNow={handleUpdateNow}
-                onUpdateLater={handleUpdateLater}
-                onDismiss={handleDismiss}
-                isInstalling={isInstalling}
-              />
-              <MajorUpdateOverlay
-                visible={githubUpdate.visible}
-                latestTag={githubUpdate.latestTag}
-                releaseNotes={githubUpdate.releaseNotes}
-                releaseUrl={githubUpdate.releaseUrl}
-                onDismiss={githubUpdate.onDismiss}
-                onLater={githubUpdate.onLater}
-                onUpdateAction={handleGithubUpdateAction}
-                isDownloading={isDownloadingGitHub}
-                downloadProgress={downloadProgress}
-              />
-              <CampaignManager />
-            </View>
-          </DownloadsProvider>
+          <NetworkProvider>
+            <DownloadsProvider>
+              <View style={[styles.container, { backgroundColor: currentTheme.colors.darkBackground }]}>
+                <StatusBar style="light" />
+                {!isAppReady && <SplashScreen onFinish={handleSplashComplete} />}
+                {shouldShowApp && <AppNavigator initialRouteName={initialRouteName} />}
+                <UpdatePopup
+                  visible={showUpdatePopup}
+                  updateInfo={updateInfo}
+                  onUpdateNow={handleUpdateNow}
+                  onUpdateLater={handleUpdateLater}
+                  onDismiss={handleDismiss}
+                  isInstalling={isInstalling}
+                />
+                <MajorUpdateOverlay
+                  visible={githubUpdate.visible}
+                  latestTag={githubUpdate.latestTag}
+                  releaseNotes={githubUpdate.releaseNotes}
+                  releaseUrl={githubUpdate.releaseUrl}
+                  onDismiss={githubUpdate.onDismiss}
+                  onLater={githubUpdate.onLater}
+                  onUpdateAction={handleGithubUpdateAction}
+                  isDownloading={isDownloadingGitHub}
+                  downloadProgress={downloadProgress}
+                />
+                <CampaignManager />
+              </View>
+            </DownloadsProvider>
+          </NetworkProvider>
         </NavigationContainer>
       </PaperProvider>
     </AccountProvider>

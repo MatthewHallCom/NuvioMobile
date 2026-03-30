@@ -130,6 +130,12 @@ const StreamsList = memo(
               (type === 'series' || type === 'other') ? currentEpisode?.name : undefined
             }
             parentPosterUrl={episodeImage || metadata?.poster || undefined}
+            parentDescription={metadata?.description}
+            parentGenres={metadata?.genres}
+            parentRuntime={metadata?.runtime ? parseInt(String(metadata.runtime), 10) : undefined}
+            parentRating={metadata?.imdbRating ? parseFloat(String(metadata.imdbRating)) : undefined}
+            parentBannerUrl={metadata?.banner}
+            parentLogoUrl={metadata?.logo}
             providerName={
               streams &&
               Object.keys(streams).find(pid =>
