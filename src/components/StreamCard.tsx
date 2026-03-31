@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Platform,
   Clipboard,
@@ -203,6 +204,7 @@ const StreamCard = memo(({
   }, [startDownload, stream.url, stream.headers, streamInfo.quality, showAlert, stream.name, stream.title, parentId, parentImdbId, parentTitle, parentType, parentSeason, parentEpisode, parentEpisodeTitle, parentPosterUrl, providerName, parentDescription, parentGenres, parentRuntime, parentRating, parentBannerUrl, parentLogoUrl]);
 
   const isDebrid = streamInfo.isDebrid;
+  const downloadTappedRef = React.useRef(false);
   return (
     <TouchableOpacity
       style={[
@@ -210,7 +212,13 @@ const StreamCard = memo(({
         isLoading && styles.streamCardLoading,
         isDebrid && styles.streamCardHighlighted
       ]}
-      onPress={onPress}
+      onPress={() => {
+        if (downloadTappedRef.current) {
+          downloadTappedRef.current = false;
+          return;
+        }
+        onPress();
+      }}
       onLongPress={handleLongPress}
       disabled={isLoading}
       activeOpacity={0.7}
@@ -279,17 +287,20 @@ const StreamCard = memo(({
 
 
       {settings?.enableDownloads !== false && (
-        <TouchableOpacity
+        <Pressable
           style={[styles.streamAction, { marginLeft: 8, backgroundColor: theme.colors.elevation2 }]}
-          onPress={handleDownload}
-          activeOpacity={0.7}
+          onPress={() => {
+            downloadTappedRef.current = true;
+            handleDownload();
+          }}
+          hitSlop={8}
         >
           <MaterialIcons
             name="download"
             size={20}
             color={theme.colors.highEmphasis}
           />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </TouchableOpacity>
   );

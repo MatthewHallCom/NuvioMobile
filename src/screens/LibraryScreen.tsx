@@ -22,15 +22,15 @@ import {
   Image,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { NavigationProp, RouteProp } from '@react-navigation/native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FastImage from '@d11/react-native-fast-image';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { catalogService } from '../services/catalogService';
 import type { StreamingContent } from '../services/catalogService';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList, MainTabParamList } from '../navigation/AppNavigator';
 import { logger } from '../utils/logger';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -44,6 +44,8 @@ import { useTranslation } from 'react-i18next';
 import { useScrollToTop } from '../contexts/ScrollToTopContext';
 import OfflineBanner from '../components/common/OfflineBanner';
 import { TMDBService } from '../services/tmdbService';
+import { useDownloads } from '../contexts/DownloadsContext';
+import LibraryDownloadsSection from '../components/library/LibraryDownloadsSection';
 
 interface LibraryItem extends StreamingContent {
   progress?: number;
@@ -259,7 +261,7 @@ const LibraryScreen = () => {
   const { numColumns, itemWidth } = useMemo(() => getGridLayout(width), [width]);
   const [loading, setLoading] = useState(true);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
-  const [filter, setFilter] = useState<'trakt' | 'simkl' | 'movies' | 'series' | 'mal'>('movies');
+  const [filter, setFilter] = useState<'trakt' | 'simkl' | 'movies' | 'series' | 'mal' | 'downloads'>('movies');
   const [showTraktContent, setShowTraktContent] = useState(false);
   const [malList, setMalMalList] = useState<MalAnimeNode[]>([]);
   const [malLoading, setMalLoading] = useState(false);
@@ -274,6 +276,10 @@ const LibraryScreen = () => {
   const insets = useSafeAreaInsets();
   const { currentTheme } = useTheme();
   const { settings } = useSettings();
+  const { downloads, pauseDownload, resumeDownload, cancelDownload, removeDownload } = useDownloads();
+  const hasDownloads = downloads.length > 0;
+  const showDownloadsFilter = hasDownloads && settings?.enableDownloads !== false;
+  const route = useRoute<RouteProp<MainTabParamList, 'Library'>>();
   const flashListRef = useRef<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [traktSyncMode, setTraktSyncMode] = useState<'off' | 'manual' | 'automatic'>('off');
@@ -284,6 +290,24 @@ const LibraryScreen = () => {
   }, []);
 
   useScrollToTop('Library', scrollToTop);
+
+  // Auto-switch away from downloads filter when no downloads remain
+  useEffect(() => {
+    if (!showDownloadsFilter && filter === 'downloads') {
+      setFilter('movies');
+    }
+  }, [showDownloadsFilter, filter]);
+
+  // Handle navigation param to switch to downloads filter (e.g. from OfflineBanner)
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.initialFilter === 'downloads' && showDownloadsFilter) {
+        setFilter('downloads');
+        setShowTraktContent(false);
+        setShowSimklContent(false);
+      }
+    }, [route.params?.initialFilter, showDownloadsFilter])
+  );
 
   const {
     isAuthenticated: traktAuthenticated,
@@ -1743,7 +1767,7 @@ const LibraryScreen = () => {
     );
   };
 
-  const renderFilter = (filterType: 'trakt' | 'simkl' | 'movies' | 'series' | 'mal', label: string, iconName?: keyof typeof MaterialIcons.glyphMap) => {
+  const renderFilter = (filterType: 'trakt' | 'simkl' | 'movies' | 'series' | 'mal' | 'downloads', label: string, iconName?: keyof typeof MaterialIcons.glyphMap) => {
     const isActive = filter === filterType;
 
     return (
@@ -1905,10 +1929,23 @@ const LibraryScreen = () => {
            {renderFilter('mal', 'MAL')}
            {renderFilter('movies', t('search.movies'))}
            {renderFilter('series', t('search.tv_shows'))}
+           {showDownloadsFilter && renderFilter('downloads', t('navigation.downloads'))}
           </ScrollView>
         )}
 
-        {showTraktContent ? renderTraktContent() : showSimklContent ? renderSimklContent() : (filter === 'mal' ? renderMalContent() : renderContent())}
+        {showTraktContent ? renderTraktContent()
+          : showSimklContent ? renderSimklContent()
+          : filter === 'downloads' ? (
+              <LibraryDownloadsSection
+                downloads={downloads}
+                pauseDownload={pauseDownload}
+                resumeDownload={resumeDownload}
+                cancelDownload={cancelDownload}
+                removeDownload={removeDownload}
+              />
+            )
+          : filter === 'mal' ? renderMalContent()
+          : renderContent()}
       </View>
 
       {/* Sync FAB - Bottom Right (only in manual mode) */}

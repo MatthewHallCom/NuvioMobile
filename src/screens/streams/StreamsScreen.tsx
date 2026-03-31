@@ -54,6 +54,8 @@ export const StreamsScreen = () => {
     selectedProvider,
     handleProviderChange,
     handleStreamPress,
+    sizeSortMode,
+    handleSizeSortChange,
     
     // Loading states
     loadingStreams,
@@ -129,6 +131,8 @@ export const StreamsScreen = () => {
             selectedProvider={selectedProvider}
             filterItems={filterItems}
             handleProviderChange={handleProviderChange}
+            sizeSortMode={sizeSortMode}
+            handleSizeSortChange={handleSizeSortChange}
             activeFetchingScrapers={activeFetchingScrapers}
             isAutoplayWaiting={isAutoplayWaiting}
             autoplayTriggered={autoplayTriggered}
@@ -182,6 +186,8 @@ export const StreamsScreen = () => {
             filterItems={filterItems}
             selectedProvider={selectedProvider}
             handleProviderChange={handleProviderChange}
+            sizeSortMode={sizeSortMode}
+            handleSizeSortChange={handleSizeSortChange}
             handleStreamPress={handleStreamPress}
             loadingProviders={loadingProviders}
             loadingStreams={loadingStreams}

@@ -114,6 +114,53 @@ export const getQualityNumeric = (title: string | undefined): number => {
 };
 
 /**
+ * Extract size in bytes from a stream, checking multiple sources
+ */
+export const getStreamSizeInBytes = (stream: Stream): number => {
+  // Direct size field
+  if (stream.size && typeof stream.size === 'number' && stream.size > 0) {
+    return stream.size;
+  }
+
+  // behaviorHints.videoSize
+  if (stream.behaviorHints?.videoSize && stream.behaviorHints.videoSize > 0) {
+    return stream.behaviorHints.videoSize;
+  }
+
+  // Parse from title (legacy format: 💾 2.5 GB or just 2.5 GB)
+  const title = stream.title || stream.name || '';
+  const sizeMatch = title.match(/([\d.]+)\s*(GB|MB)/i);
+  if (sizeMatch) {
+    const value = parseFloat(sizeMatch[1]);
+    const unit = sizeMatch[2].toUpperCase();
+    if (unit === 'GB') return value * 1024 * 1024 * 1024;
+    if (unit === 'MB') return value * 1024 * 1024;
+  }
+
+  return 0;
+};
+
+/**
+ * Sort streams by size
+ */
+export const sortStreamsBySize = (
+  streams: Stream[],
+  direction: 'asc' | 'desc'
+): Stream[] => {
+  return [...streams].sort((a, b) => {
+    const sizeA = getStreamSizeInBytes(a);
+    const sizeB = getStreamSizeInBytes(b);
+
+    // Streams with no size info go to the end
+    if (sizeA === 0 && sizeB === 0) return 0;
+    if (sizeA === 0) return 1;
+    if (sizeB === 0) return 1;
+
+    return direction === 'asc' ? sizeA - sizeB : sizeB - sizeA;
+  });
+};
+
+/**
  * Sort streams by quality (highest first)
  */
 export const sortStreamsByQuality = (streams: Stream[]): Stream[] => {

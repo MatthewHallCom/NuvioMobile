@@ -25,6 +25,7 @@ import {
   getQualityNumeric,
   inferVideoTypeFromUrl,
   sortStreamsByQuality,
+  sortStreamsBySize,
 } from './utils';
 import {
   GroupedStreams,
@@ -74,6 +75,7 @@ export const useStreamsScreen = () => {
   const [streamsLoadStart, setStreamsLoadStart] = useState<number | null>(null);
   const [loadingProviders, setLoadingProviders] = useState<LoadingProviders>({});
   const [selectedProvider, setSelectedProvider] = useState('all');
+  const [sizeSortMode, setSizeSortMode] = useState<'default' | 'size-asc' | 'size-desc'>('default');
   const [availableProviders, setAvailableProviders] = useState<Set<string>>(new Set());
   const prevProvidersRef = useRef<Set<string>>(new Set());
 
@@ -202,6 +204,10 @@ export const useStreamsScreen = () => {
 
   const handleProviderChange = useCallback((provider: string) => {
     setSelectedProvider(provider);
+  }, []);
+
+  const handleSizeSortChange = useCallback((mode: 'default' | 'size-asc' | 'size-desc') => {
+    setSizeSortMode(mode);
   }, []);
 
   // Quality and language filtering callbacks
@@ -935,6 +941,13 @@ export const useStreamsScreen = () => {
 
       if (combinedStreams.length === 0) return [];
 
+      // Apply size sort if active
+      if (sizeSortMode === 'size-asc') {
+        combinedStreams = sortStreamsBySize(combinedStreams, 'asc');
+      } else if (sizeSortMode === 'size-desc') {
+        combinedStreams = sortStreamsBySize(combinedStreams, 'desc');
+      }
+
       return [
         {
           title: sectionTitle,
@@ -961,6 +974,13 @@ export const useStreamsScreen = () => {
         let processedStreams = filteredStreams;
         if (!isInstalledAddon && settings.streamSortMode === 'quality-then-scraper') {
           processedStreams = sortStreamsByQuality(filteredStreams);
+        }
+
+        // Apply size sort if active (overrides quality sort)
+        if (sizeSortMode === 'size-asc') {
+          processedStreams = sortStreamsBySize(processedStreams, 'asc');
+        } else if (sizeSortMode === 'size-desc') {
+          processedStreams = sortStreamsBySize(processedStreams, 'desc');
         }
 
         // For multiple installations of same addon, add # to section title
@@ -992,6 +1012,7 @@ export const useStreamsScreen = () => {
     filterByLanguage,
     addonResponseOrder,
     settings.streamSortMode,
+    sizeSortMode,
     selectedEpisode,
     metadata,
   ]);
@@ -1165,6 +1186,8 @@ export const useStreamsScreen = () => {
     selectedProvider,
     handleProviderChange,
     handleStreamPress,
+    sizeSortMode,
+    handleSizeSortChange,
 
     // Loading states
     isLoading,

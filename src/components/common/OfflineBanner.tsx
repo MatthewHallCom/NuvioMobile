@@ -17,7 +17,7 @@ export default function OfflineBanner() {
     <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
       <TouchableOpacity
         style={[styles.banner, { backgroundColor: currentTheme.colors.elevation1 }]}
-        onPress={() => navigation.navigate('MainTabs', { screen: 'Downloads' })}
+        onPress={() => navigation.navigate('MainTabs', { screen: 'Library', params: { initialFilter: 'downloads' } })}
         activeOpacity={0.7}
       >
         <MaterialCommunityIcons name="wifi-off" size={18} color={currentTheme.colors.primary} />

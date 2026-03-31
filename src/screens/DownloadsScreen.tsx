@@ -33,6 +33,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from 'react-i18next';
 import { VideoPlayerService } from '../services/videoPlayerService';
 import type { DownloadItem } from '../contexts/DownloadsContext';
+import * as FileSystem from 'expo-file-system/legacy';
 import { groupDownloadsByShow, getMovieDownloads, getOfflineImageUri } from '../services/offlineMetadataService';
 import type { GroupedShow } from '../services/offlineMetadataService';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -428,16 +429,58 @@ const DownloadsScreen: React.FC = () => {
       Alert.alert(t('downloads.not_ready'), t('downloads.not_ready_desc'));
       return;
     }
-    const uri = (item as any).fileUri || (item as any).sourceUrl;
-    if (!uri) return;
+    let uri = item.fileUri;
+    if (!uri) {
+      Alert.alert('Playback Error', 'Downloaded file path is missing. Try removing and re-downloading.');
+      return;
+    }
 
-    // Infer videoType and mkv
+    // Verify the file actually exists before attempting playback
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        // If file has no video extension, check if a renamed version with .mp4 exists
+        const hasVideoExt = /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ts)$/i.test(uri);
+        if (!hasVideoExt) {
+          const mp4Uri = uri + '.mp4';
+          const mp4Info = await FileSystem.getInfoAsync(mp4Uri);
+          if (mp4Info.exists) {
+            uri = mp4Uri;
+          } else {
+            Alert.alert('File Not Found', 'The downloaded file could not be found. Try removing and re-downloading.');
+            return;
+          }
+        } else {
+          Alert.alert('File Not Found', 'The downloaded file could not be found. Try removing and re-downloading.');
+          return;
+        }
+      } else {
+        // File exists — if it has no video extension, rename it so the native player can detect format
+        const hasVideoExt = /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ts)$/i.test(uri);
+        if (!hasVideoExt) {
+          const newUri = uri + '.mp4';
+          try {
+            await FileSystem.moveAsync({ from: uri, to: newUri });
+            uri = newUri;
+          } catch {
+            // If rename fails, try playing with original path anyway
+          }
+        }
+      }
+    } catch {
+      Alert.alert('Playback Error', 'Could not access the downloaded file.');
+      return;
+    }
+
+    // Infer videoType from file extension
     const lower = String(uri).toLowerCase();
     const isMkv = /\.mkv(\?|$)/i.test(lower) || /(?:[?&]ext=|container=|format=)mkv\b/i.test(lower);
     const isM3u8 = /\.m3u8(\?|$)/i.test(lower);
     const isMpd = /\.mpd(\?|$)/i.test(lower);
     const isMp4 = /\.mp4(\?|$)/i.test(lower);
-    const videoType = isM3u8 ? 'm3u8' : isMpd ? 'mpd' : isMp4 ? 'mp4' : undefined;
+    const hasExtension = /\.\w{2,5}$/.test(lower.replace(/\?.*$/, ''));
+    // If no recognized extension, default to mp4 for local files (most common container from debrid services)
+    const videoType = isM3u8 ? 'm3u8' : isMpd ? 'mpd' : isMp4 ? 'mp4' : (!hasExtension ? 'mp4' : undefined);
 
     // Use external player if enabled in settings
     if (settings.useExternalPlayerForDownloads) {

@@ -184,23 +184,59 @@ async function getContentLength(url: string, headers?: Record<string, string>): 
   }
 }
 
+function extensionFromContentType(contentType?: string | null): string | null {
+  if (!contentType) return null;
+  const mime = contentType.split(';')[0].trim().toLowerCase();
+  const map: Record<string, string> = {
+    'video/mp4': '.mp4',
+    'video/x-matroska': '.mkv',
+    'video/webm': '.webm',
+    'video/x-msvideo': '.avi',
+    'video/quicktime': '.mov',
+    'video/x-flv': '.flv',
+    'video/mpeg': '.mpg',
+    'video/ogg': '.ogv',
+    'video/3gpp': '.3gp',
+    'video/mp2t': '.ts',
+    'application/octet-stream': null, // generic, can't infer
+  };
+  return map[mime] ?? null;
+}
+
+function hasVideoExtension(filename: string): boolean {
+  return /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ogv|3gp|ts)$/i.test(filename);
+}
+
 async function getDownloadFilename(url: string, headers?: Record<string, string>): Promise<string | null> {
   if (!isHttpUrl(url)) return null;
   try {
     const response = await fetch(url, { method: 'HEAD', headers });
-    // Prefer explicit server-provided filename; do not guess extensions.
+    const contentType = response.headers.get('content-type');
+
     const filenameFromHeaders =
       parseContentDispositionFilename(response.headers.get('content-disposition')) ||
       response.headers.get('x-filename') ||
       response.headers.get('x-download-filename') ||
       response.headers.get('x-suggested-filename');
 
-    const filename = filenameFromHeaders ? String(filenameFromHeaders) : null;
-    if (filename) return sanitizeFilename(filename);
+    let filename = filenameFromHeaders ? String(filenameFromHeaders) : null;
 
-    // If server doesn't provide a filename header, fall back to URL path segment.
-    const urlName = getFilenameFromUrl(url);
-    if (urlName) return sanitizeFilename(urlName);
+    if (!filename) {
+      // Fall back to URL path segment.
+      filename = getFilenameFromUrl(url);
+    }
+
+    if (filename) {
+      const sanitized = sanitizeFilename(filename);
+      // If the filename has no video extension, try to infer one from content-type
+      if (!hasVideoExtension(sanitized)) {
+        const ext = extensionFromContentType(contentType);
+        if (ext) return sanitized + ext;
+        // Default to .mp4 for video content without a recognized extension
+        return sanitized + '.mp4';
+      }
+      return sanitized;
+    }
   } catch (error) {
     console.warn('[DownloadsContext] Could not resolve filename from HEAD request', error);
   }
@@ -517,6 +553,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     task
       .begin(({ expectedBytes }: any) => {
+        console.log(`[DownloadsContext] Download began: ${taskId}, expectedBytes: ${expectedBytes}`);
         updateDownload(taskId, (d) => ({
           ...d,
           totalBytes: typeof expectedBytes === 'number' && expectedBytes > 0 ? expectedBytes : d.totalBytes,
@@ -565,6 +602,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       })
       .done(({ location, bytesDownloaded, bytesTotal }: any) => {
+        console.log(`[DownloadsContext] Download completed: ${taskId}, bytes: ${bytesDownloaded}/${bytesTotal}, location: ${location}`);
         const finalPath = location ? String(location) : '';
         const finalUri = finalPath ? toFileUri(finalPath) : undefined;
         const relativeFilePath = getRelativeDownloadPath(finalPath || finalUri);
@@ -772,6 +810,8 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [attachDownloadTask, maybeUpdateLiveActivity, updateDownload]);
 
   const startDownload = useCallback(async (input: StartDownloadInput) => {
+    console.log(`[DownloadsContext] startDownload called:`, { title: input.title, type: input.type, url: input.url?.substring(0, 80) });
+
     if (!isHttpUrl(input.url)) {
       throw new Error('This stream is not a direct HTTP URL, so it cannot be downloaded.');
     }
@@ -935,7 +975,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Start the native background download.
     try {
+      console.log(`[DownloadsContext] Starting native download task: ${compoundId} -> ${destinationPath}`);
       task.start();
+      console.log(`[DownloadsContext] Native download task started successfully: ${compoundId}`);
     } catch (e) {
       console.log('[DownloadsContext] Failed to start background download', e);
       updateDownload(compoundId, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
