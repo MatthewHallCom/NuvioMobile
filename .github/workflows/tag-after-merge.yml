@@ -1,0 +1,82 @@
+name: Tag After Upstream Sync Merge
+
+# Triggered when any PR is closed. Runs only when:
+#   1. The PR was merged (not just closed)
+#   2. The PR carries the `upstream-sync` label
+#
+# On match: creates the version tag from the `release/{version}` branch name,
+# pushes it to origin (which triggers release.yml to build the APK), then
+# cleans up the integration branch.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  tag-and-cleanup:
+    # Only run for merged upstream-sync PRs
+    if: |
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'upstream-sync')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version from branch name
+        id: parse
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Branch: $BRANCH"
+
+          # Branch must be release/{version}
+          if [[ "$BRANCH" != release/* ]]; then
+            echo "ERROR: Branch '$BRANCH' does not follow the release/{version} pattern."
+            exit 1
+          fi
+
+          VERSION="${BRANCH#release/}"
+          echo "Version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout main at merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check tag does not already exist
+        id: check_tag
+        run: |
+          VERSION="${{ steps.parse.outputs.version }}"
+          if git tag -l "$VERSION" | grep -q "^${VERSION}$"; then
+            echo "Tag $VERSION already exists -- skipping tag creation."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.skip == 'false'
+        run: |
+          VERSION="${{ steps.parse.outputs.version }}"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          echo "Tag $VERSION pushed. The release.yml workflow will now build the APK."
+
+      - name: Delete integration branch
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ steps.parse.outputs.branch }}"
+          git push origin --delete "$BRANCH"
+          echo "Deleted branch $BRANCH"
