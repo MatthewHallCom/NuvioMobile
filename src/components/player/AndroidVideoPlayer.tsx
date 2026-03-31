@@ -93,6 +93,8 @@ const AndroidVideoPlayer: React.FC = () => {
   const pinchRef = useRef(null);
   const tracksHook = usePlayerTracks();
 
+  const isOfflinePlayback = uri?.startsWith('file://') ?? false;
+
   const [currentStreamUrl, setCurrentStreamUrl] = useState<string>(uri);
   const [currentVideoType, setCurrentVideoType] = useState<string | undefined>((route.params as any).videoType);
 
@@ -751,8 +753,11 @@ const AndroidVideoPlayer: React.FC = () => {
 
   // Subtitle addon fetching
   const fetchAvailableSubtitles = useCallback(async () => {
+    // Skip remote subtitle fetch for offline playback
+    if (isOfflinePlayback) return;
+
     const targetImdbId = resolvedImdbId;
-    
+
     setIsLoadingSubtitleList(true);
     try {
       const stremioType = type === 'series' ? 'series' : 'movie';
@@ -830,7 +835,7 @@ const AndroidVideoPlayer: React.FC = () => {
     } finally {
       setIsLoadingSubtitleList(false);
     }
-  }, [resolvedImdbId, type, season, episode, id]);
+  }, [resolvedImdbId, type, season, episode, id, isOfflinePlayback]);
 
   const loadWyzieSubtitle = useCallback(async (subtitle: WyzieSubtitle) => {
     if (!subtitle.url) return;
@@ -972,7 +977,7 @@ const AndroidVideoPlayer: React.FC = () => {
                 displayError = JSON.stringify(err);
               }
 
-              modals.setErrorDetails(displayError);
+              modals.setErrorDetails(isOfflinePlayback ? 'File may be corrupted or incomplete' : displayError);
               modals.setShowErrorModal(true);
             }}
             onBuffer={(buf) => {
@@ -1116,7 +1121,7 @@ const AndroidVideoPlayer: React.FC = () => {
           setShowSpeedModal={modals.setShowSpeedModal}
           setShowSubmitIntroModal={modals.setShowSubmitIntroModal}
           isSubtitleModalOpen={modals.showSubtitleModal}
-          setShowSourcesModal={modals.setShowSourcesModal}
+          setShowSourcesModal={isOfflinePlayback ? undefined : modals.setShowSourcesModal}
           setShowEpisodesModal={type === 'series' ? modals.setShowEpisodesModal : undefined}
           onSliderValueChange={(val) => { playerState.isDragging.current = true; }}
           onSlidingStart={() => { playerState.isDragging.current = true; }}
@@ -1291,13 +1296,15 @@ const AndroidVideoPlayer: React.FC = () => {
         primaryColor={currentTheme.colors.primary}
       />
 
-      <SourcesModal
-        showSourcesModal={modals.showSourcesModal}
-        setShowSourcesModal={modals.setShowSourcesModal}
-        availableStreams={availableStreams}
-        currentStreamUrl={currentStreamUrl}
-        onSelectStream={(stream) => handleSelectStream(stream)}
-      />
+      {!isOfflinePlayback && (
+        <SourcesModal
+          showSourcesModal={modals.showSourcesModal}
+          setShowSourcesModal={modals.setShowSourcesModal}
+          availableStreams={availableStreams}
+          currentStreamUrl={currentStreamUrl}
+          onSelectStream={(stream) => handleSelectStream(stream)}
+        />
+      )}
 
       <SpeedModal
         showSpeedModal={modals.showSpeedModal}

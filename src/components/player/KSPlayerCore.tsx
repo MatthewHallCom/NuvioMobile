@@ -100,6 +100,7 @@ const KSPlayerCore: React.FC = () => {
   } = params;
 
   const videoType = (params as any)?.videoType as string | undefined;
+  const isOfflinePlayback = uri?.startsWith('file://') ?? false;
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -474,9 +475,9 @@ const KSPlayerCore: React.FC = () => {
     }
   };
 
-  // Auto-fetch subtitles on load
+  // Auto-fetch subtitles on load (skip for offline playback — no remote fetch needed)
   useEffect(() => {
-    if (imdbId) {
+    if (imdbId && !isOfflinePlayback) {
       fetchAvailableSubtitles(undefined, true);
     }
   }, [imdbId]);
@@ -642,6 +643,9 @@ const KSPlayerCore: React.FC = () => {
         headersKeys: Object.keys(headers || {}),
         rawError: error,
       });
+    }
+    if (isOfflinePlayback) {
+      msg = 'File may be corrupted or incomplete';
     }
     modals.setErrorDetails(msg);
     modals.setShowErrorModal(true);
@@ -968,7 +972,7 @@ const KSPlayerCore: React.FC = () => {
             setShowSpeedModal={modals.setShowSpeedModal}
             setShowSubmitIntroModal={modals.setShowSubmitIntroModal}
             isSubtitleModalOpen={modals.showSubtitleModal}
-            setShowSourcesModal={modals.setShowSourcesModal}
+            setShowSourcesModal={isOfflinePlayback ? undefined : modals.setShowSourcesModal}
             setShowEpisodesModal={type === 'series' ? modals.setShowEpisodesModal : undefined}
             onSliderValueChange={onSliderValueChange}
             onSlidingStart={onSlidingStart}
@@ -1117,7 +1121,7 @@ const KSPlayerCore: React.FC = () => {
         setShowSubtitleLanguageModal={modals.setShowSubtitleLanguageModal}
         customSubtitles={customSubs.customSubtitles}
         availableSubtitles={customSubs.availableSubtitles}
-        fetchAvailableSubtitles={fetchAvailableSubtitles}
+        fetchAvailableSubtitles={isOfflinePlayback ? async () => {} : fetchAvailableSubtitles}
         loadWyzieSubtitle={loadWyzieSubtitle}
         subtitleSize={customSubs.subtitleSize}
         increaseSubtitleSize={() => customSubs.setSubtitleSize((s: number) => s + 2)}
@@ -1172,13 +1176,15 @@ const KSPlayerCore: React.FC = () => {
         primaryColor={currentTheme.colors.primary}
       />
 
-      <SourcesModal
-        showSourcesModal={modals.showSourcesModal}
-        setShowSourcesModal={modals.setShowSourcesModal}
-        availableStreams={availableStreams || {}}
-        currentStreamUrl={uri}
-        onSelectStream={handleSelectStream}
-      />
+      {!isOfflinePlayback && (
+        <SourcesModal
+          showSourcesModal={modals.showSourcesModal}
+          setShowSourcesModal={modals.setShowSourcesModal}
+          availableStreams={availableStreams || {}}
+          currentStreamUrl={uri}
+          onSelectStream={handleSelectStream}
+        />
+      )}
 
       {type === 'series' && (
         <EpisodesModal

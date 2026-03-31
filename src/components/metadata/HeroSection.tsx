@@ -13,6 +13,8 @@ import {
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 
 import { MaterialIcons, Entypo, Feather } from '@expo/vector-icons';
+import BatchSeasonDownloadModal from '../downloads/BatchSeasonDownloadModal';
+import MovieDownloadModal from '../downloads/MovieDownloadModal';
 import { LinearGradient } from 'expo-linear-gradient';
 // Replaced FastImage with standard Image for logos
 import { BlurView as ExpoBlurView } from 'expo-blur';
@@ -97,6 +99,7 @@ interface HeroSectionProps {
   getPlayButtonText: () => string;
   setBannerImage: (bannerImage: string | null) => void;
   groupedEpisodes?: { [seasonNumber: number]: any[] };
+  imdbId?: string;
   // Trakt integration props
   isAuthenticated?: boolean;
   isInWatchlist?: boolean;
@@ -121,6 +124,7 @@ const ActionButtons = memo(({
   isWatched,
   watchProgress,
   groupedEpisodes,
+  imdbId: imdbIdProp,
   metadata,
   settings,
   // Trakt integration props
@@ -141,6 +145,7 @@ const ActionButtons = memo(({
   isWatched: boolean;
   watchProgress: any;
   groupedEpisodes?: { [seasonNumber: number]: any[] };
+  imdbId?: string;
   metadata: any;
   settings: any;
   // Trakt integration props
@@ -341,7 +346,12 @@ const ActionButtons = memo(({
   const hasRatings = type === 'series';
 
   // Count additional buttons (AI Chat removed - now in top right corner)
-  const additionalButtonCount = (hasTraktCollection ? 1 : 0) + (hasRatings ? 1 : 0);
+  const hasDownload = type === 'series'
+    ? (groupedEpisodes && Object.keys(groupedEpisodes).length > 0)
+    : true;
+  const additionalButtonCount = (hasDownload ? 1 : 0) + (hasTraktCollection ? 1 : 0) + (hasRatings ? 1 : 0);
+  const [batchDownloadVisible, setBatchDownloadVisible] = useState(false);
+  const [movieDownloadVisible, setMovieDownloadVisible] = useState(false);
 
   return (
     <Animated.View style={[isTablet ? styles.tabletActionButtons : styles.actionButtons, animatedStyle]}>
@@ -404,6 +414,33 @@ const ActionButtons = memo(({
           </Text>
         </TouchableOpacity>
 
+        {/* Download Button */}
+        {hasDownload && (
+          <TouchableOpacity
+            style={[styles.iconButton, isTablet && styles.tabletIconButton, styles.singleRowIconButton]}
+            onPress={() => type === 'series' ? setBatchDownloadVisible(true) : setMovieDownloadVisible(true)}
+            activeOpacity={0.85}
+          >
+            {Platform.OS === 'ios' ? (
+              GlassViewComp && liquidGlassAvailable ? (
+                <GlassViewComp
+                  style={styles.blurBackgroundRound}
+                  glassEffectStyle="regular"
+                />
+              ) : (
+                <ExpoBlurView intensity={80} style={styles.blurBackgroundRound} tint="dark" />
+              )
+            ) : (
+              <View style={styles.androidFallbackBlurRound} />
+            )}
+            <MaterialIcons
+              name="download"
+              size={isTablet ? 28 : 24}
+              color={currentTheme.colors.white}
+            />
+          </TouchableOpacity>
+        )}
+
         {/* Trakt Collection Button */}
         {hasTraktCollection && (
           <TouchableOpacity
@@ -458,6 +495,50 @@ const ActionButtons = memo(({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Batch Season Download Modal */}
+      {type === 'series' && (() => {
+        const imdbId = imdbIdProp || metadata?.imdb_id || (id.startsWith('tt') ? id : undefined);
+        return (
+          <BatchSeasonDownloadModal
+            visible={batchDownloadVisible}
+            onClose={() => setBatchDownloadVisible(false)}
+            contentId={id}
+            contentTitle={metadata?.name || metadata?.title || ''}
+            groupedEpisodes={groupedEpisodes!}
+            posterUrl={metadata?.poster || metadata?.image || null}
+            imdbId={imdbId}
+            metadata={metadata ? { imdb_id: imdbId } : undefined}
+            year={metadata?.year}
+            description={metadata?.description}
+            genres={metadata?.genres}
+            runtime={metadata?.runtime}
+            rating={metadata?.rating}
+            bannerUrl={metadata?.banner}
+            logoUrl={metadata?.logo}
+          />
+        );
+      })()}
+
+      {/* Movie Download Modal */}
+      {type !== 'series' && (
+        <MovieDownloadModal
+          visible={movieDownloadVisible}
+          onClose={() => setMovieDownloadVisible(false)}
+          contentId={id}
+          contentTitle={metadata?.name || metadata?.title || ''}
+          posterUrl={metadata?.poster || metadata?.image || null}
+          imdbId={imdbIdProp || metadata?.imdb_id || (id.startsWith('tt') ? id : undefined)}
+          metadata={metadata ? { imdb_id: imdbIdProp || metadata?.imdb_id || (id.startsWith('tt') ? id : undefined) } : undefined}
+          year={metadata?.year}
+          description={metadata?.description}
+          genres={metadata?.genres}
+          runtime={metadata?.runtime}
+          rating={metadata?.rating}
+          bannerUrl={metadata?.banner}
+          logoUrl={metadata?.logo}
+        />
+      )}
     </Animated.View>
   );
 });
@@ -858,6 +939,7 @@ const HeroSection: React.FC<HeroSectionProps> = memo(({
   getPlayButtonText,
   setBannerImage,
   groupedEpisodes,
+  imdbId,
   dynamicBackgroundColor,
   handleBack,
   tmdbId,
@@ -1897,6 +1979,7 @@ const HeroSection: React.FC<HeroSectionProps> = memo(({
                 isWatched={isWatched}
                 watchProgress={watchProgress}
                 groupedEpisodes={groupedEpisodes}
+                imdbId={imdbId}
                 metadata={metadata}
                 settings={settings}
                 // Trakt integration props

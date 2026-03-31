@@ -59,6 +59,7 @@ import AppleTVHero from '../components/home/AppleTVHero';
 import CatalogSection from '../components/home/CatalogSection';
 import { SkeletonFeatured } from '../components/home/SkeletonLoaders';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import OfflineBanner from '../components/common/OfflineBanner';
 import homeStyles, { sharedStyles } from '../styles/homeStyles';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../contexts/ThemeContext';
@@ -839,6 +840,7 @@ const HomeScreen = () => {
   const memoizedContinueWatchingSection = useMemo(() => <ContinueWatchingSection ref={continueWatchingRef} />, []);
   const memoizedHeader = useMemo(() => (
     <>
+      <OfflineBanner />
       {showHeroSection ? memoizedFeaturedContent : null}
       {memoizedContinueWatchingSection}
     </>

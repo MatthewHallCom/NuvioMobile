@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   completeHandler,
@@ -10,6 +10,9 @@ import {
 import { mmkvStorage } from '../services/mmkvStorage';
 import { notificationService } from '../services/notificationService';
 import { startOrUpdateDownloadLiveActivity, stopDownloadLiveActivity } from '../services/liveActivityService';
+import { offlineImageService } from '../services/offlineImageService';
+import { useNetwork } from './NetworkContext';
+import { useSettings } from '../hooks/useSettings';
 
 export type DownloadStatus = 'downloading' | 'completed' | 'paused' | 'error' | 'queued';
 
@@ -43,6 +46,20 @@ export interface DownloadItem {
   tmdbId?: number; // TMDB ID if available
   // CRITICAL: Resume data for proper pause/resume across sessions
   resumeData?: string; // The string which allows the API to resume a paused download
+  // Offline metadata
+  description?: string;
+  genres?: string[];
+  runtime?: number;        // minutes
+  rating?: number;         // e.g. IMDb rating
+  bannerUrl?: string;      // remote banner URL
+  logoUrl?: string;        // remote logo URL
+  totalSeasons?: number;   // for series: total season count
+  totalEpisodes?: number;  // for series: total episode count in this season
+  // Local image paths (populated after caching)
+  localPosterPath?: string;   // file:// URI to cached poster
+  localBannerPath?: string;   // file:// URI to cached banner
+  // Network-pause tracking
+  autoPausedByNetwork?: boolean;
 }
 
 type StartDownloadInput = {
@@ -61,6 +78,12 @@ type StartDownloadInput = {
   // Additional metadata for progress tracking
   imdbId?: string;
   tmdbId?: number;
+  description?: string;
+  genres?: string[];
+  runtime?: number;
+  rating?: number;
+  bannerUrl?: string;
+  logoUrl?: string;
 };
 
 type DownloadsContextValue = {
@@ -161,23 +184,59 @@ async function getContentLength(url: string, headers?: Record<string, string>): 
   }
 }
 
+function extensionFromContentType(contentType?: string | null): string | null {
+  if (!contentType) return null;
+  const mime = contentType.split(';')[0].trim().toLowerCase();
+  const map: Record<string, string> = {
+    'video/mp4': '.mp4',
+    'video/x-matroska': '.mkv',
+    'video/webm': '.webm',
+    'video/x-msvideo': '.avi',
+    'video/quicktime': '.mov',
+    'video/x-flv': '.flv',
+    'video/mpeg': '.mpg',
+    'video/ogg': '.ogv',
+    'video/3gpp': '.3gp',
+    'video/mp2t': '.ts',
+    'application/octet-stream': null, // generic, can't infer
+  };
+  return map[mime] ?? null;
+}
+
+function hasVideoExtension(filename: string): boolean {
+  return /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ogv|3gp|ts)$/i.test(filename);
+}
+
 async function getDownloadFilename(url: string, headers?: Record<string, string>): Promise<string | null> {
   if (!isHttpUrl(url)) return null;
   try {
     const response = await fetch(url, { method: 'HEAD', headers });
-    // Prefer explicit server-provided filename; do not guess extensions.
+    const contentType = response.headers.get('content-type');
+
     const filenameFromHeaders =
       parseContentDispositionFilename(response.headers.get('content-disposition')) ||
       response.headers.get('x-filename') ||
       response.headers.get('x-download-filename') ||
       response.headers.get('x-suggested-filename');
 
-    const filename = filenameFromHeaders ? String(filenameFromHeaders) : null;
-    if (filename) return sanitizeFilename(filename);
+    let filename = filenameFromHeaders ? String(filenameFromHeaders) : null;
 
-    // If server doesn't provide a filename header, fall back to URL path segment.
-    const urlName = getFilenameFromUrl(url);
-    if (urlName) return sanitizeFilename(urlName);
+    if (!filename) {
+      // Fall back to URL path segment.
+      filename = getFilenameFromUrl(url);
+    }
+
+    if (filename) {
+      const sanitized = sanitizeFilename(filename);
+      // If the filename has no video extension, try to infer one from content-type
+      if (!hasVideoExtension(sanitized)) {
+        const ext = extensionFromContentType(contentType);
+        if (ext) return sanitized + ext;
+        // Default to .mp4 for video content without a recognized extension
+        return sanitized + '.mp4';
+      }
+      return sanitized;
+    }
   } catch (error) {
     console.warn('[DownloadsContext] Could not resolve filename from HEAD request', error);
   }
@@ -284,6 +343,14 @@ function resolveDownloadFileUri(relativeFilePath?: string | null, fileUri?: stri
 export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [downloads, setDownloads] = useState<DownloadItem[]>([]);
   const downloadsRef = useRef(downloads);
+  const { isConnected, isWiFi } = useNetwork();
+  const { settings } = useSettings();
+  const isWiFiRef = useRef(isWiFi);
+  const isConnectedRef = useRef(isConnected);
+  const wifiOnlyRef = useRef(settings.wifiOnlyDownloads);
+  useEffect(() => { isWiFiRef.current = isWiFi; }, [isWiFi]);
+  useEffect(() => { isConnectedRef.current = isConnected; }, [isConnected]);
+  useEffect(() => { wifiOnlyRef.current = settings.wifiOnlyDownloads; }, [settings.wifiOnlyDownloads]);
   useEffect(() => {
     downloadsRef.current = downloads;
   }, [downloads]);
@@ -335,6 +402,28 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return safe;
           });
           setDownloads(restored);
+
+          // Backfill: cache images for existing completed downloads that lack local paths
+          const needsBackfill = restored.filter(
+            d => d.status === 'completed' && d.posterUrl && !d.localPosterPath
+          );
+          if (needsBackfill.length > 0) {
+            (async () => {
+              for (const item of needsBackfill) {
+                const [localPosterPath, localBannerPath] = await Promise.all([
+                  offlineImageService.cacheImage(item.posterUrl, item.contentId, 'poster'),
+                  offlineImageService.cacheImage(item.bannerUrl, item.contentId, 'banner'),
+                ]);
+                if (localPosterPath || localBannerPath) {
+                  setDownloads(prev => prev.map(d =>
+                    d.id === item.id
+                      ? { ...d, localPosterPath: localPosterPath || d.localPosterPath, localBannerPath: localBannerPath || d.localBannerPath, updatedAt: Date.now() }
+                      : d
+                  ));
+                }
+              }
+            })();
+          }
         }
       } catch { }
     })();
@@ -464,6 +553,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     task
       .begin(({ expectedBytes }: any) => {
+        console.log(`[DownloadsContext] Download began: ${taskId}, expectedBytes: ${expectedBytes}`);
         updateDownload(taskId, (d) => ({
           ...d,
           totalBytes: typeof expectedBytes === 'number' && expectedBytes > 0 ? expectedBytes : d.totalBytes,
@@ -512,6 +602,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       })
       .done(({ location, bytesDownloaded, bytesTotal }: any) => {
+        console.log(`[DownloadsContext] Download completed: ${taskId}, bytes: ${bytesDownloaded}/${bytesTotal}, location: ${location}`);
         const finalPath = location ? String(location) : '';
         const finalUri = finalPath ? toFileUri(finalPath) : undefined;
         const relativeFilePath = getRelativeDownloadPath(finalPath || finalUri);
@@ -719,6 +810,8 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [attachDownloadTask, maybeUpdateLiveActivity, updateDownload]);
 
   const startDownload = useCallback(async (input: StartDownloadInput) => {
+    console.log(`[DownloadsContext] startDownload called:`, { title: input.title, type: input.type, url: input.url?.substring(0, 80) });
+
     if (!isHttpUrl(input.url)) {
       throw new Error('This stream is not a direct HTTP URL, so it cannot be downloaded.');
     }
@@ -726,6 +819,21 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Validate that the URL is downloadable (not m3u8 or DASH)
     if (!isDownloadableUrl(input.url)) {
       throw new Error('This stream format cannot be downloaded. M3U8 (HLS) and DASH streaming formats are not supported for download.');
+    }
+
+    // WiFi-only download check
+    if (wifiOnlyRef.current && isConnectedRef.current && !isWiFiRef.current) {
+      const userConfirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Cellular Download',
+          'WiFi-only downloads is enabled. Do you want to download on cellular data?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Download Anyway', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!userConfirmed) return;
     }
 
     const contentId = input.id;
@@ -801,11 +909,37 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Store metadata for progress tracking
       imdbId: input.imdbId,
       tmdbId: input.tmdbId,
+      // Offline metadata
+      description: input.description,
+      genres: input.genres,
+      runtime: input.runtime,
+      rating: input.rating,
+      bannerUrl: input.bannerUrl,
+      logoUrl: input.logoUrl,
       // Initialize resumeData as undefined
       resumeData: undefined,
     };
 
     setDownloads(prev => [newItem, ...prev]);
+
+    // Fire-and-forget image caching
+    const downloadId = compoundId;
+    (async () => {
+      try {
+        const [localPosterPath, localBannerPath] = await Promise.all([
+          offlineImageService.cacheImage(input.posterUrl, input.id, 'poster'),
+          offlineImageService.cacheImage(input.bannerUrl, input.id, 'banner'),
+        ]);
+        // Update the download item with local paths
+        setDownloads(prev => prev.map(d =>
+          d.id === downloadId
+            ? { ...d, localPosterPath: localPosterPath || undefined, localBannerPath: localBannerPath || undefined, updatedAt: Date.now() }
+            : d
+        ));
+      } catch {
+        // Image caching failure should never block downloads
+      }
+    })();
 
     // If somehow started while app is backgrounded, show Live Activity.
     maybeUpdateLiveActivity(newItem);
@@ -841,7 +975,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     // Start the native background download.
     try {
+      console.log(`[DownloadsContext] Starting native download task: ${compoundId} -> ${destinationPath}`);
       task.start();
+      console.log(`[DownloadsContext] Native download task started successfully: ${compoundId}`);
     } catch (e) {
       console.log('[DownloadsContext] Failed to start background download', e);
       updateDownload(compoundId, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
@@ -897,8 +1033,48 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (resolvedFileUri && item?.status === 'completed') {
       await FileSystem.deleteAsync(resolvedFileUri, { idempotent: true }).catch(() => { });
     }
+    if (item) {
+      await offlineImageService.deleteImagesIfOrphaned(
+        item.contentId,
+        downloadsRef.current,
+        item.id
+      );
+    }
     setDownloads(prev => prev.filter(d => d.id !== id));
   }, [stopLiveActivityForDownload]);
+
+  // Auto-pause/resume downloads on WiFi change
+  useEffect(() => {
+    if (!settings.wifiOnlyDownloads) return;
+
+    if (!isWiFi && isConnected) {
+      // WiFi lost while on cellular — pause active downloads
+      const activeDownloads = downloadsRef.current.filter(d => d.status === 'downloading');
+      for (const d of activeDownloads) {
+        pauseDownload(d.id);
+      }
+      if (activeDownloads.length > 0) {
+        setDownloads(prev => prev.map(d =>
+          d.status === 'paused' && activeDownloads.some(a => a.id === d.id)
+            ? { ...d, autoPausedByNetwork: true, updatedAt: Date.now() }
+            : d
+        ));
+      }
+    } else if (isWiFi) {
+      // WiFi restored — resume only auto-paused downloads
+      const autoPaused = downloadsRef.current.filter(d => d.autoPausedByNetwork && d.status === 'paused');
+      for (const d of autoPaused) {
+        resumeDownload(d.id);
+      }
+      if (autoPaused.length > 0) {
+        setDownloads(prev => prev.map(d =>
+          d.autoPausedByNetwork
+            ? { ...d, autoPausedByNetwork: false, updatedAt: Date.now() }
+            : d
+        ));
+      }
+    }
+  }, [isWiFi, isConnected, pauseDownload, resumeDownload, settings.wifiOnlyDownloads]);
 
   const value = useMemo<DownloadsContextValue>(() => ({
     downloads,

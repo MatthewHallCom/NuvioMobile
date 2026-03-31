@@ -12,7 +12,7 @@ import PulsingChip from '../../../components/PulsingChip';
 import EpisodeHero from './EpisodeHero';
 import MovieHero from './MovieHero';
 import StreamsList from './StreamsList';
-import { Stream } from '../../../types/metadata';
+import { Stream, Episode } from '../../../types/metadata';
 import { StreamSection, FilterItem, GroupedStreams, LoadingProviders, ScraperLogos } from '../types';
 
 // Lazy-safe community blur import for Android
@@ -62,6 +62,8 @@ interface MobileStreamsLayoutProps {
   filterItems: FilterItem[];
   selectedProvider: string;
   handleProviderChange: (provider: string) => void;
+  sizeSortMode: 'default' | 'size-asc' | 'size-desc';
+  handleSizeSortChange: (mode: 'default' | 'size-asc' | 'size-desc') => void;
   handleStreamPress: (stream: Stream) => void;
   
   // Loading
@@ -88,6 +90,7 @@ interface MobileStreamsLayoutProps {
   // IDs
   id: string;
   imdbId?: string;
+
 }
 
 const MobileStreamsLayout = memo(
@@ -113,6 +116,8 @@ const MobileStreamsLayout = memo(
     filterItems,
     selectedProvider,
     handleProviderChange,
+    sizeSortMode,
+    handleSizeSortChange,
     handleStreamPress,
     loadingProviders,
     loadingStreams,
@@ -214,15 +219,43 @@ const MobileStreamsLayout = memo(
             !settings.enableStreamsBackdrop && { backgroundColor: colors.darkBackground },
           ]}
         >
-          {/* Provider Filter */}
+          {/* Provider Filter + Sort */}
           <View style={styles.filterContainer}>
             {!streamsEmpty && (
-              <ProviderFilter
-                selectedProvider={selectedProvider}
-                providers={filterItems}
-                onSelect={handleProviderChange}
-                theme={currentTheme}
-              />
+              <>
+                <View style={styles.filterRow}>
+                  <View style={styles.filterScrollWrapper}>
+                    <ProviderFilter
+                      selectedProvider={selectedProvider}
+                      providers={filterItems}
+                      onSelect={handleProviderChange}
+                      theme={currentTheme}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.sortButton,
+                      sizeSortMode !== 'default' && styles.sortButtonActive,
+                    ]}
+                    onPress={() => {
+                      const next = sizeSortMode === 'default' ? 'size-asc' : sizeSortMode === 'size-asc' ? 'size-desc' : 'default';
+                      handleSizeSortChange(next);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons
+                      name={sizeSortMode === 'size-asc' ? 'arrow-upward' : sizeSortMode === 'size-desc' ? 'arrow-downward' : 'swap-vert'}
+                      size={18}
+                      color={sizeSortMode !== 'default' ? colors.white : colors.highEmphasis}
+                    />
+                    {sizeSortMode !== 'default' && (
+                      <Text style={styles.sortButtonText}>
+                        {sizeSortMode === 'size-asc' ? 'Size ↑' : 'Size ↓'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
             )}
           </View>
 
@@ -295,6 +328,7 @@ const MobileStreamsLayout = memo(
             />
           )}
         </View>
+
       </>
     );
   }
@@ -336,6 +370,31 @@ const createStyles = (colors: any) =>
     filterContainer: {
       paddingHorizontal: 12,
       paddingBottom: 8,
+    },
+    filterRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+    },
+    filterScrollWrapper: {
+      flex: 1,
+    },
+    sortButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      backgroundColor: colors.elevation2,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 16,
+      marginLeft: 6,
+    },
+    sortButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    sortButtonText: {
+      color: colors.white,
+      fontSize: 12,
+      fontWeight: '600' as const,
+      marginLeft: 3,
     },
     activeScrapersContainer: {
       paddingHorizontal: 16,

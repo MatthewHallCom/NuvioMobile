@@ -4,10 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Platform,
   Clipboard,
   Image,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import FastImage from '@d11/react-native-fast-image';
@@ -16,6 +18,7 @@ import QualityBadge from './metadata/QualityBadge';
 import { useSettings } from '../hooks/useSettings';
 import { useDownloads } from '../contexts/DownloadsContext';
 import { useToast } from '../contexts/ToastContext';
+import { parseCodecFromTitle, getCodecSupport, getCodecDisplayName, getCodecWarning } from '../services/codecService';
 
 interface StreamCardProps {
   stream: Stream;
@@ -37,6 +40,12 @@ interface StreamCardProps {
   providerName?: string;
   parentId?: string;
   parentImdbId?: string;
+  parentDescription?: string;
+  parentGenres?: string[];
+  parentRuntime?: number;
+  parentRating?: number;
+  parentBannerUrl?: string;
+  parentLogoUrl?: string;
 }
 
 const StreamCard = memo(({
@@ -58,7 +67,13 @@ const StreamCard = memo(({
   parentPosterUrl,
   providerName,
   parentId,
-  parentImdbId
+  parentImdbId,
+  parentDescription,
+  parentGenres,
+  parentRuntime,
+  parentRating,
+  parentBannerUrl,
+  parentLogoUrl,
 }: StreamCardProps) => {
   const { settings } = useSettings();
   const { startDownload } = useDownloads();
@@ -112,6 +127,10 @@ const StreamCard = memo(({
     // Extract quality for badge display
     const basicQuality = title.match(/(\d+)p/)?.[1] || null;
 
+    const codec = parseCodecFromTitle(title, name, (stream.behaviorHints as any)?.filename);
+    const codecSupport = codec ? getCodecSupport(codec) : 'yes';
+    const codecName = codec ? getCodecDisplayName(codec) : null;
+
     return {
       quality: basicQuality,
       isHDR: title.toLowerCase().includes('hdr'),
@@ -119,7 +138,9 @@ const StreamCard = memo(({
       size: sizeDisplay,
       isDebrid: stream.behaviorHints?.cached,
       displayName: name || 'Unnamed Stream',
-      subTitle: title && title !== name ? title : null
+      subTitle: title && title !== name ? title : null,
+      codecSupport,
+      codecName,
     };
   }, [stream.name, stream.title, stream.behaviorHints, stream.size]);
 
@@ -135,9 +156,24 @@ const StreamCard = memo(({
           return;
         }
       } catch { }
-      // Show immediate feedback on both platforms
-      // Show immediate feedback on both platforms
-      // showAlert('Starting Download', 'Download will be started.');
+      // Codec compatibility check before downloading
+      const codec = parseCodecFromTitle(stream.title, stream.name, (stream.behaviorHints as any)?.filename);
+      if (codec) {
+        const codecWarning = getCodecWarning(codec);
+        if (codecWarning) {
+          const confirmed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'Download Warning',
+              `${codecWarning}\n\nDownload anyway?`,
+              [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                { text: 'Download Anyway', onPress: () => resolve(true) },
+              ]
+            );
+          });
+          if (!confirmed) return;
+        }
+      }
       const parent: any = stream as any;
       const inferredTitle = parentTitle || stream.name || stream.title || parent.metaName || 'Content';
       const inferredType: 'movie' | 'series' = parentType || (parent.kind === 'series' || parent.type === 'series' ? 'series' : 'movie');
@@ -177,14 +213,21 @@ const StreamCard = memo(({
         // Pass metadata for progress tracking
         imdbId: parentImdbId || parent.imdbId || undefined,
         tmdbId: tmdbId,
+        description: parentDescription,
+        genres: parentGenres,
+        runtime: parentRuntime,
+        rating: parentRating,
+        bannerUrl: parentBannerUrl,
+        logoUrl: parentLogoUrl,
       });
       showAlert('Download Started', 'Your download has been added to the queue.');
     } catch (e: any) {
       showAlert('Download Failed', e.message || 'Could not start download.');
     }
-  }, [startDownload, stream.url, stream.headers, streamInfo.quality, showAlert, stream.name, stream.title, parentId, parentImdbId, parentTitle, parentType, parentSeason, parentEpisode, parentEpisodeTitle, parentPosterUrl, providerName]);
+  }, [startDownload, stream.url, stream.headers, streamInfo.quality, showAlert, stream.name, stream.title, parentId, parentImdbId, parentTitle, parentType, parentSeason, parentEpisode, parentEpisodeTitle, parentPosterUrl, providerName, parentDescription, parentGenres, parentRuntime, parentRating, parentBannerUrl, parentLogoUrl]);
 
   const isDebrid = streamInfo.isDebrid;
+  const downloadTappedRef = React.useRef(false);
   return (
     <TouchableOpacity
       style={[
@@ -192,7 +235,13 @@ const StreamCard = memo(({
         isLoading && styles.streamCardLoading,
         isDebrid && styles.streamCardHighlighted
       ]}
-      onPress={onPress}
+      onPress={() => {
+        if (downloadTappedRef.current) {
+          downloadTappedRef.current = false;
+          return;
+        }
+        onPress();
+      }}
       onLongPress={handleLongPress}
       disabled={isLoading}
       activeOpacity={0.7}
@@ -256,22 +305,37 @@ const StreamCard = memo(({
               <Text style={[styles.chipText, { color: theme.colors.white }]}>DEBRID</Text>
             </View>
           )}
+
+          {streamInfo.codecSupport !== 'yes' && streamInfo.codecName && (
+            <View style={[styles.chip, {
+              backgroundColor: streamInfo.codecSupport === 'no'
+                ? (theme.colors.error || '#FF3B30')
+                : (theme.colors.warning || '#FF9500')
+            }]}>
+              <Text style={[styles.chipText, { color: theme.colors.white }]}>
+                {streamInfo.codecName}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
 
       {settings?.enableDownloads !== false && (
-        <TouchableOpacity
+        <Pressable
           style={[styles.streamAction, { marginLeft: 8, backgroundColor: theme.colors.elevation2 }]}
-          onPress={handleDownload}
-          activeOpacity={0.7}
+          onPress={() => {
+            downloadTappedRef.current = true;
+            handleDownload();
+          }}
+          hitSlop={8}
         >
           <MaterialIcons
             name="download"
             size={20}
             color={theme.colors.highEmphasis}
           />
-        </TouchableOpacity>
+        </Pressable>
       )}
     </TouchableOpacity>
   );

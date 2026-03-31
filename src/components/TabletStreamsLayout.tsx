@@ -54,6 +54,8 @@ interface TabletStreamsLayoutProps {
   selectedProvider: string;
   filterItems: Array<{ id: string; name: string; }>;
   handleProviderChange: (provider: string) => void;
+  sizeSortMode: 'default' | 'size-asc' | 'size-desc';
+  handleSizeSortChange: (mode: 'default' | 'size-asc' | 'size-desc') => void;
   activeFetchingScrapers: string[];
 
   // Loading states
@@ -98,6 +100,8 @@ const TabletStreamsLayout: React.FC<TabletStreamsLayoutProps> = ({
   selectedProvider,
   filterItems,
   handleProviderChange,
+  sizeSortMode,
+  handleSizeSortChange,
   activeFetchingScrapers,
   isAutoplayWaiting,
   autoplayTriggered,
@@ -492,12 +496,46 @@ const TabletStreamsLayout: React.FC<TabletStreamsLayoutProps> = ({
                 {/* Always show filter container to prevent layout shift */}
                 <View style={[styles.filterContainer]}>
                   {!streamsEmpty && (
-                    <ProviderFilter
-                      selectedProvider={selectedProvider}
-                      providers={filterItems}
-                      onSelect={handleProviderChange}
-                      theme={currentTheme}
-                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ flex: 1 }}>
+                        <ProviderFilter
+                          selectedProvider={selectedProvider}
+                          providers={filterItems}
+                          onSelect={handleProviderChange}
+                          theme={currentTheme}
+                        />
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: colors.elevation2,
+                            paddingHorizontal: 10,
+                            paddingVertical: 8,
+                            borderRadius: 16,
+                            marginLeft: 6,
+                          },
+                          sizeSortMode !== 'default' && { backgroundColor: colors.primary },
+                        ]}
+                        onPress={() => {
+                          const next = sizeSortMode === 'default' ? 'size-asc' : sizeSortMode === 'size-asc' ? 'size-desc' : 'default';
+                          handleSizeSortChange(next);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialIcons
+                          name={sizeSortMode === 'size-asc' ? 'arrow-upward' : sizeSortMode === 'size-desc' ? 'arrow-downward' : 'swap-vert'}
+                          size={18}
+                          color={sizeSortMode !== 'default' ? colors.white : colors.highEmphasis}
+                        />
+                        {sizeSortMode !== 'default' && (
+                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: '600', marginLeft: 3 }}>
+                            {sizeSortMode === 'size-asc' ? 'Size ↑' : 'Size ↓'}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
 
