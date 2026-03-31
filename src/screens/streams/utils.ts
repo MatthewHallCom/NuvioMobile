@@ -1,4 +1,5 @@
 import { Stream } from '../../types/metadata';
+import { parseCodecFromTitle, getCodecSupport } from '../../services/codecService';
 
 /**
  * Language variations for filtering
@@ -213,9 +214,95 @@ export const inferVideoTypeFromUrl = (url?: string): string | undefined => {
   // DASH
   if (/(\.|ext=)(mpd)(\b|$)/i.test(lower) || /\.mpd(\b|$)/i.test(lower)) return 'mpd';
 
-  // Progressive
+  // Progressive (mp4, mkv, avi, webm)
   if (/(\.|ext=)(mp4)(\b|$)/i.test(lower) || /\.mp4(\b|$)/i.test(lower)) return 'mp4';
+  if (/(\.|ext=)(mkv)(\b|$)/i.test(lower) || /\.mkv(\b|$)/i.test(lower)) return 'mp4';
+  if (/(\.|ext=)(avi)(\b|$)/i.test(lower) || /\.avi(\b|$)/i.test(lower)) return 'mp4';
+  if (/(\.|ext=)(webm)(\b|$)/i.test(lower) || /\.webm(\b|$)/i.test(lower)) return 'mp4';
+
   return undefined;
+};
+
+/**
+ * Probe a URL via HEAD request to determine video type from Content-Type header.
+ * Returns 'mp4' for progressive downloads, 'm3u8' for HLS, 'mpd' for DASH, or undefined.
+ * Times out after 3 seconds to avoid blocking playback.
+ */
+export const probeVideoType = async (url: string, headers?: Record<string, string>): Promise<string | undefined> => {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const resp = await fetch(url, {
+      method: 'HEAD',
+      headers: headers || {},
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    const ct = (resp.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('mpegurl') || ct.includes('x-mpegurl')) return 'm3u8';
+    if (ct.includes('dash+xml')) return 'mpd';
+    if (ct.includes('video/') || ct.includes('octet-stream') || ct.includes('matroska')) return 'mp4';
+    // If Content-Disposition has a filename with extension, use that
+    const cd = (resp.headers.get('content-disposition') || '').toLowerCase();
+    if (/\.mkv/i.test(cd) || /\.mp4/i.test(cd) || /\.avi/i.test(cd) || /\.webm/i.test(cd)) return 'mp4';
+    if (/\.m3u8/i.test(cd)) return 'm3u8';
+    return undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Auto-select the best stream for downloading:
+ * 1. Filter to HTTP-downloadable (no HLS/DASH) — same logic as isDownloadableUrl in DownloadsContext
+ * 2. Filter to compatible codecs (not 'no' support); null codec (unknown) is treated as compatible
+ * 3. Sort by size ascending
+ * 4. Pick smallest with known size; fallback to first available
+ *
+ * Returns { stream, isCodecFallback } where isCodecFallback=true means
+ * no compatible streams were available and we fell back to an incompatible one.
+ */
+export const autoSelectDownloadStream = (streams: Stream[]): {
+  stream: Stream | null;
+  isCodecFallback: boolean;
+} => {
+  if (!streams.length) return { stream: null, isCodecFallback: false };
+
+  // Filter to downloadable URLs (no HLS/DASH streaming formats)
+  const downloadable = streams.filter(s => {
+    const url = (s.url || '').toLowerCase();
+    if (!url) return false;
+    return !url.includes('m3u8') && !url.includes('.mpd') && !url.includes('mpd');
+  });
+
+  if (!downloadable.length) return { stream: null, isCodecFallback: false };
+
+  // Filter to compatible codecs; null codec (no info in title) is treated as compatible
+  const compatible = downloadable.filter(s => {
+    const codec = parseCodecFromTitle(s.title, s.name);
+    if (codec === null) return true;
+    return getCodecSupport(codec) !== 'no';
+  });
+
+  const isCodecFallback = compatible.length === 0;
+  const candidates = compatible.length > 0 ? compatible : downloadable;
+
+  // Sort by size ascending, pick smallest with known size
+  // Filter out streams under 100MB — these are almost always samples/previews
+  const MIN_SIZE_BYTES = 100 * 1024 * 1024; // 100MB
+  const withSize = candidates
+    .map(s => ({ stream: s, size: getStreamSizeInBytes(s) }))
+    .filter(s => s.size > 0)
+    .sort((a, b) => a.size - b.size);
+
+  const fullSize = withSize.filter(s => s.size >= MIN_SIZE_BYTES);
+  if (fullSize.length > 0) return { stream: fullSize[0].stream, isCodecFallback };
+
+  // If everything is under 100MB, still pick the largest (most likely to be real content)
+  if (withSize.length > 0) return { stream: withSize[withSize.length - 1].stream, isCodecFallback };
+
+  // Fallback: first candidate
+  return { stream: candidates[0], isCodecFallback };
 };
 
 /**

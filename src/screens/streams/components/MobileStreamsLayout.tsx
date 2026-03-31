@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,7 +12,7 @@ import PulsingChip from '../../../components/PulsingChip';
 import EpisodeHero from './EpisodeHero';
 import MovieHero from './MovieHero';
 import StreamsList from './StreamsList';
-import { Stream } from '../../../types/metadata';
+import { Stream, Episode } from '../../../types/metadata';
 import { StreamSection, FilterItem, GroupedStreams, LoadingProviders, ScraperLogos } from '../types';
 
 // Lazy-safe community blur import for Android
@@ -90,6 +90,7 @@ interface MobileStreamsLayoutProps {
   // IDs
   id: string;
   imdbId?: string;
+
 }
 
 const MobileStreamsLayout = memo(
@@ -327,6 +328,7 @@ const MobileStreamsLayout = memo(
             />
           )}
         </View>
+
       </>
     );
   }

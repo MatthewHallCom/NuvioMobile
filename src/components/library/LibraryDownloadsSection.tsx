@@ -270,6 +270,8 @@ const LibraryDownloadsSection: React.FC<LibraryDownloadsSectionProps> = ({
 
   const [showRemoveAlert, setShowRemoveAlert] = useState(false);
   const [pendingRemoveItem, setPendingRemoveItem] = useState<DownloadItem | null>(null);
+  const [showDeleteShowAlert, setShowDeleteShowAlert] = useState(false);
+  const [pendingDeleteShow, setPendingDeleteShow] = useState<{ title: string; items: DownloadItem[] } | null>(null);
 
   const movieDownloads = useMemo(() => getMovieDownloads(downloads), [downloads]);
   const seriesGroups = useMemo(() => groupDownloadsByShow(downloads), [downloads]);
@@ -418,6 +420,19 @@ const LibraryDownloadsSection: React.FC<LibraryDownloadsSectionProps> = ({
     setShowRemoveAlert(true);
   }, []);
 
+  const handleMovieLongPress = useCallback((item: DownloadItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPendingDeleteShow({ title: item.title, items: [item] });
+    setShowDeleteShowAlert(true);
+  }, []);
+
+  const handleShowLongPress = useCallback((group: GroupedShow) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const allEpisodes = Object.values(group.seasons).flat();
+    setPendingDeleteShow({ title: group.title, items: allEpisodes });
+    setShowDeleteShowAlert(true);
+  }, []);
+
   if (downloads.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -471,6 +486,7 @@ const LibraryDownloadsSection: React.FC<LibraryDownloadsSectionProps> = ({
                 key={item.id}
                 style={styles.movieCard}
                 onPress={() => handleDownloadPress(item)}
+                onLongPress={() => handleMovieLongPress(item)}
                 activeOpacity={0.8}
               >
                 <FastImage
@@ -497,6 +513,7 @@ const LibraryDownloadsSection: React.FC<LibraryDownloadsSectionProps> = ({
                 key={group.contentId}
                 style={styles.movieCard}
                 onPress={() => navigation.navigate('OfflineShowDetail', { contentId: group.contentId })}
+                onLongPress={() => handleShowLongPress(group)}
                 activeOpacity={0.8}
               >
                 <FastImage
@@ -526,6 +543,28 @@ const LibraryDownloadsSection: React.FC<LibraryDownloadsSectionProps> = ({
           { label: t('downloads.remove'), onPress: () => { if (pendingRemoveItem) { removeDownload(pendingRemoveItem.id); } setShowRemoveAlert(false); setPendingRemoveItem(null); }, style: {} },
         ]}
         onClose={() => { setShowRemoveAlert(false); setPendingRemoveItem(null); }}
+      />
+
+      {/* Delete Show/Movie Confirmation */}
+      <CustomAlert
+        visible={showDeleteShowAlert}
+        title="Delete Download"
+        message={pendingDeleteShow
+          ? pendingDeleteShow.items.length === 1
+            ? `Delete "${pendingDeleteShow.title}" from your downloads?`
+            : `Delete all ${pendingDeleteShow.items.length} episodes of "${pendingDeleteShow.title}" from your downloads?`
+          : ''}
+        actions={[
+          { label: 'Cancel', onPress: () => { setShowDeleteShowAlert(false); setPendingDeleteShow(null); } },
+          { label: 'Delete', onPress: () => {
+            if (pendingDeleteShow) {
+              pendingDeleteShow.items.forEach(item => removeDownload(item.id));
+            }
+            setShowDeleteShowAlert(false);
+            setPendingDeleteShow(null);
+          }, style: {} },
+        ]}
+        onClose={() => { setShowDeleteShowAlert(false); setPendingDeleteShow(null); }}
       />
     </ScrollView>
   );

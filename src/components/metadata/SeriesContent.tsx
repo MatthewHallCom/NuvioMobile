@@ -75,7 +75,6 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const isDarkMode = useColorScheme() === 'dark';
-
   // Enhanced responsive sizing for tablets and TV screens
   const deviceWidth = Dimensions.get('window').width;
   const deviceHeight = Dimensions.get('window').height;
@@ -907,6 +906,7 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
               {seasonViewMode === 'posters' ? 'Posters' : 'Text'}
             </Text>
           </TouchableOpacity>
+
         </View>
 
         <FlatList
@@ -1957,6 +1957,7 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
           </Pressable>
         </Pressable>
       </Modal>
+
     </View>
   );
 };

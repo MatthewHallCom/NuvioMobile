@@ -44,7 +44,7 @@ export const StreamsScreen = () => {
     imdbId,
     bannerImage,
     currentEpisode,
-    
+
     // Streams
     streams,
     groupedStreams,

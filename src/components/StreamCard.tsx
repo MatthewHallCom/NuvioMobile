@@ -9,6 +9,7 @@ import {
   Platform,
   Clipboard,
   Image,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import FastImage from '@d11/react-native-fast-image';
@@ -17,6 +18,7 @@ import QualityBadge from './metadata/QualityBadge';
 import { useSettings } from '../hooks/useSettings';
 import { useDownloads } from '../contexts/DownloadsContext';
 import { useToast } from '../contexts/ToastContext';
+import { parseCodecFromTitle, getCodecSupport, getCodecDisplayName, getCodecWarning } from '../services/codecService';
 
 interface StreamCardProps {
   stream: Stream;
@@ -125,6 +127,10 @@ const StreamCard = memo(({
     // Extract quality for badge display
     const basicQuality = title.match(/(\d+)p/)?.[1] || null;
 
+    const codec = parseCodecFromTitle(title, name, (stream.behaviorHints as any)?.filename);
+    const codecSupport = codec ? getCodecSupport(codec) : 'yes';
+    const codecName = codec ? getCodecDisplayName(codec) : null;
+
     return {
       quality: basicQuality,
       isHDR: title.toLowerCase().includes('hdr'),
@@ -132,7 +138,9 @@ const StreamCard = memo(({
       size: sizeDisplay,
       isDebrid: stream.behaviorHints?.cached,
       displayName: name || 'Unnamed Stream',
-      subTitle: title && title !== name ? title : null
+      subTitle: title && title !== name ? title : null,
+      codecSupport,
+      codecName,
     };
   }, [stream.name, stream.title, stream.behaviorHints, stream.size]);
 
@@ -148,9 +156,24 @@ const StreamCard = memo(({
           return;
         }
       } catch { }
-      // Show immediate feedback on both platforms
-      // Show immediate feedback on both platforms
-      // showAlert('Starting Download', 'Download will be started.');
+      // Codec compatibility check before downloading
+      const codec = parseCodecFromTitle(stream.title, stream.name, (stream.behaviorHints as any)?.filename);
+      if (codec) {
+        const codecWarning = getCodecWarning(codec);
+        if (codecWarning) {
+          const confirmed = await new Promise<boolean>((resolve) => {
+            Alert.alert(
+              'Download Warning',
+              `${codecWarning}\n\nDownload anyway?`,
+              [
+                { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                { text: 'Download Anyway', onPress: () => resolve(true) },
+              ]
+            );
+          });
+          if (!confirmed) return;
+        }
+      }
       const parent: any = stream as any;
       const inferredTitle = parentTitle || stream.name || stream.title || parent.metaName || 'Content';
       const inferredType: 'movie' | 'series' = parentType || (parent.kind === 'series' || parent.type === 'series' ? 'series' : 'movie');
@@ -280,6 +303,18 @@ const StreamCard = memo(({
           {streamInfo.isDebrid && (
             <View style={[styles.chip, { backgroundColor: theme.colors.success }]}>
               <Text style={[styles.chipText, { color: theme.colors.white }]}>DEBRID</Text>
+            </View>
+          )}
+
+          {streamInfo.codecSupport !== 'yes' && streamInfo.codecName && (
+            <View style={[styles.chip, {
+              backgroundColor: streamInfo.codecSupport === 'no'
+                ? (theme.colors.error || '#FF3B30')
+                : (theme.colors.warning || '#FF9500')
+            }]}>
+              <Text style={[styles.chipText, { color: theme.colors.white }]}>
+                {streamInfo.codecName}
+              </Text>
             </View>
           )}
         </View>

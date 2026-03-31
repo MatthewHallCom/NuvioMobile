@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Dimensions, Platform, Linking } from 'react-native';
+import { Alert, Dimensions, Platform, Linking } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { RouteProp } from '@react-navigation/native';
 
@@ -24,9 +24,11 @@ import {
   filterStreamsByLanguage,
   getQualityNumeric,
   inferVideoTypeFromUrl,
+  probeVideoType,
   sortStreamsByQuality,
   sortStreamsBySize,
 } from './utils';
+import { parseCodecFromTitle, getCodecWarning } from '../../services/codecService';
 import {
   GroupedStreams,
   StreamSection,
@@ -403,6 +405,27 @@ export const useStreamsScreen = () => {
         }
       } catch { }
 
+      // For extensionless URLs (common with debrid services), probe Content-Type via HEAD request
+      if (!videoType && stream.url) {
+        try {
+          const probed = await probeVideoType(stream.url, finalHeaders);
+          if (probed) {
+            videoType = probed;
+            if (__DEV__) {
+              logger.log('[StreamsScreen] Probed videoType via HEAD:', probed);
+            }
+          }
+        } catch { }
+      }
+
+      // Final fallback: treat unknown URLs as progressive mp4 so the player attempts playback
+      if (!videoType) {
+        videoType = 'mp4';
+        if (__DEV__) {
+          logger.log('[StreamsScreen] Falling back to mp4 for unknown videoType');
+        }
+      }
+
       if (__DEV__) {
         const finalHeaderKeys = Object.keys(finalHeaders || {});
 
@@ -447,9 +470,30 @@ export const useStreamsScreen = () => {
 
   // Handle stream press
   const handleStreamPress = useCallback(
-    async (stream: Stream) => {
+    async (stream: Stream, isAutoplay = false) => {
       try {
         if (!stream.url) return;
+
+        // Codec compatibility check (skip during autoplay to avoid jarring dialogs)
+        if (!isAutoplay) {
+          const codec = parseCodecFromTitle(stream.title, stream.name, (stream.behaviorHints as any)?.filename);
+          if (codec) {
+            const codecWarning = getCodecWarning(codec);
+            if (codecWarning) {
+              const confirmed = await new Promise<boolean>((resolve) => {
+                Alert.alert(
+                  'Codec Warning',
+                  `${codecWarning}\n\nTry playing anyway?`,
+                  [
+                    { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                    { text: 'Play Anyway', onPress: () => resolve(true) },
+                  ]
+                );
+              });
+              if (!confirmed) return;
+            }
+          }
+        }
 
         if (__DEV__) {
           const streamHeaders = (stream.headers as any) as Record<string, string> | undefined;
@@ -710,7 +754,7 @@ export const useStreamsScreen = () => {
           logger.log('🚀 Autoplay: Best stream found, starting playback...');
           setAutoplayTriggered(true);
           setIsAutoplayWaiting(false);
-          handleStreamPress(bestStream);
+          handleStreamPress(bestStream, true);
         } else if (!isStillLoading) {
           setIsAutoplayWaiting(false);
         }
