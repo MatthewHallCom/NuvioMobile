@@ -61,6 +61,9 @@ export default defineConfig(({ mode }) => {
       'expo-file-system': path.resolve(__dirname, 'src/stubs/file-system.web.ts'),
       'react-native-cheerio': 'cheerio-without-node-native',
 
+      // --- Navigation web compat ---
+      '@react-navigation/native-stack': path.resolve(__dirname, 'src/stubs/native-stack.web.ts'),
+
       // --- Deep RN internal imports ---
       'react-native/Libraries/Utilities/codegenNativeComponent': path.resolve(__dirname, 'src/stubs/codegenNativeComponent.web.ts'),
 

@@ -26,6 +26,11 @@ if (typeof globalThis._scheduleOnRuntime === 'undefined') {
   globalThis._scheduleOnRuntime = () => {};
 }
 
+// Pre-seed storage to skip onboarding on fresh desktop installs
+if (!localStorage.getItem('default:hasCompletedOnboarding')) {
+  localStorage.setItem('default:hasCompletedOnboarding', 'true');
+}
+
 import { AppRegistry } from 'react-native';
 import App from './App';
 
