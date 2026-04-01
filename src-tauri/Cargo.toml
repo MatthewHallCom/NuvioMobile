@@ -1,14 +1,12 @@
 [package]
 name = "app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Nuvio Desktop"
+authors = ["Matt"]
 license = ""
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "app_lib"
@@ -23,3 +21,13 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.10.3", features = ["macos-private-api", "devtools"] }
 tauri-plugin-log = "2"
+raw-window-handle = "0.6"
+libloading = "0.8"
+libc = "0.2"
+cfg-if = "1.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSThread"] }
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSView", "NSApplication", "NSResponder"] }
+block2 = "0.6"
