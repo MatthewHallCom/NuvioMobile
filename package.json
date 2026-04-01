@@ -6,7 +6,13 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "mac": "CATALYST=1 xcodebuild -workspace ios/Nuvio.xcworkspace -scheme Nuvio -destination 'platform=macOS,variant=Mac Catalyst' -configuration Release CODE_SIGN_IDENTITY='-' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO build -derivedDataPath ios/build && open ios/build/Build/Products/Release-maccatalyst/Nuvio.app",
     "build": "export NODE_ENV=production && export SENTRY_DISABLE_AUTO_UPLOAD=true && cd android && ./gradlew assembleRelease",
+    "dev:web": "vite --config vite.config.ts",
+    "build:web": "vite build --config vite.config.ts",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -97,18 +103,23 @@
     "react-native-video": "^6.19.0",
     "react-native-web": "^0.21.2",
     "react-native-wheel-color-picker": "^1.3.1",
-    "react-native-worklets": "^0.7.4"
+    "react-native-worklets": "^0.7.4",
+    "vite-plugin-react-native-web": "^3.1.2"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/crypto-js": "^4.2.2",
     "@types/react": "~18.3.12",
     "@types/react-native": "^0.72.8",
     "@types/react-native-vector-icons": "^6.4.18",
+    "@vitejs/plugin-react": "^6.0.1",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "patch-package": "^8.0.1",
     "react-native-svg-transformer": "^1.5.3",
     "typescript": "^5.9.3",
+    "vite": "^8.0.3",
+    "vite-plugin-static-copy": "^4.0.0",
     "xcode": "^3.0.1"
   },
   "overrides": {
