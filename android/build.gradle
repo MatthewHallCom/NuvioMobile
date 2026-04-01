@@ -26,6 +26,12 @@ allprojects {
     mavenCentral()
     maven { url 'https://www.jitpack.io' }
   }
+  // Force all Kotlin compilations to target JVM 17 (matches Java sourceCompatibility)
+  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+      jvmTarget = "17"
+    }
+  }
 }
 
 apply plugin: "expo-root-project"

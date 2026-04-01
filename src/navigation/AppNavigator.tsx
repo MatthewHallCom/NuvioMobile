@@ -40,7 +40,6 @@ import HomeScreen from '../screens/HomeScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SyncSettingsScreen from '../screens/SyncSettingsScreen';
-import DownloadsScreen from '../screens/DownloadsScreen';
 import MetadataScreen from '../screens/MetadataScreen';
 import KSPlayerCore from '../components/player/KSPlayerCore';
 import AndroidVideoPlayer from '../components/player/AndroidVideoPlayer';
@@ -77,6 +76,7 @@ import BackdropGalleryScreen from '../screens/BackdropGalleryScreen';
 import BackupScreen from '../screens/BackupScreen';
 import ContinueWatchingSettingsScreen from '../screens/ContinueWatchingSettingsScreen';
 import ContributorsScreen from '../screens/ContributorsScreen';
+import OfflineShowDetailScreen from '../screens/OfflineShowDetailScreen';
 
 import {
   ContentDiscoverySettingsScreen,
@@ -224,6 +224,7 @@ export type RootStackParamList = {
   };
   ContinueWatchingSettings: undefined;
   Contributors: undefined;
+  OfflineShowDetail: { contentId: string };
 
   // New organized settings screens
   ContentDiscoverySettings: undefined;
@@ -242,9 +243,8 @@ export type RootStackNavigationProp = NativeStackNavigationProp<RootStackParamLi
 // Tab navigator types
 export type MainTabParamList = {
   Home: undefined;
-  Library: undefined;
+  Library: { initialFilter?: 'downloads' } | undefined;
   Search: undefined;
-  Downloads: undefined;
   Settings: undefined;
 };
 
@@ -879,10 +879,6 @@ const MainTabs = () => {
                   iconName = 'search';
                   iconLibrary = 'feather';
                   break;
-                case 'Downloads':
-                  iconName = 'download';
-                  iconLibrary = 'feather';
-                  break;
                 case 'Settings':
                   iconName = 'settings';
                   iconLibrary = 'feather';
@@ -932,8 +928,6 @@ const MainTabs = () => {
     // Dynamically require to avoid impacting Android bundle
     const { createNativeBottomTabNavigator } = require('@bottom-tabs/react-navigation');
     const IOSTab = createNativeBottomTabNavigator();
-    const downloadsEnabled = appSettings?.enableDownloads !== false;
-
     return (
       <View style={{ flex: 1, backgroundColor: currentTheme.colors.darkBackground }}>
         <StatusBar
@@ -942,7 +936,7 @@ const MainTabs = () => {
           backgroundColor="transparent"
         />
         <IOSTab.Navigator
-          key={`ios-tabs-${downloadsEnabled ? 'with-dl' : 'no-dl'}`}
+          key="ios-tabs"
           initialRouteName="Home"
           // Native tab bar handles its own visuals; keep options minimal
           screenOptions={{
@@ -1012,23 +1006,6 @@ const MainTabs = () => {
               },
             })}
           />
-          {downloadsEnabled && (
-            <IOSTab.Screen
-              name="Downloads"
-              component={DownloadsScreen}
-              options={{
-                title: t('navigation.downloads'),
-                tabBarIcon: () => ({ sfSymbol: 'arrow.down.circle' }),
-              }}
-              listeners={({ navigation }: { navigation: any }) => ({
-                tabPress: (e: any) => {
-                  if (navigation.isFocused()) {
-                    emitScrollToTop('Downloads');
-                  }
-                },
-              })}
-            />
-          )}
           <IOSTab.Screen
             name="Settings"
             component={SettingsScreen}
@@ -1164,18 +1141,6 @@ const MainTabs = () => {
             },
           }}
         />
-        {appSettings?.enableDownloads !== false && (
-          <Tab.Screen
-            name="Downloads"
-            component={DownloadsScreen}
-            options={{
-              tabBarLabel: t('navigation.downloads'),
-              tabBarIcon: ({ color, size, focused }) => (
-                <MaterialCommunityIcons name={focused ? 'download' : 'download-outline'} size={size} color={color} />
-              ),
-            }}
-          />
-        )}
         <Tab.Screen
           name="Settings"
           component={SettingsScreen}
@@ -1891,6 +1856,11 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
                   backgroundColor: currentTheme.colors.darkBackground,
                 },
               }}
+            />
+            <Stack.Screen
+              name="OfflineShowDetail"
+              component={OfflineShowDetailScreen}
+              options={{ headerShown: false }}
             />
         <Stack.Screen
           name="SyncSettings"

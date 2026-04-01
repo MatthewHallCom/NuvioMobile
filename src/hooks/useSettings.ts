@@ -62,7 +62,8 @@ export interface AppSettings {
   introSubmitEnabled: boolean; // Enable/disable Intro Submission
   introDbApiKey: string; // API Key for IntroDB submission
   // Downloads
-  enableDownloads: boolean; // Show Downloads tab and enable saving streams
+  enableDownloads: boolean; // Show download buttons on streams and Downloads section in Library
+  wifiOnlyDownloads: boolean; // Only download on WiFi (default true)
   // Theme settings
   themeId: string;
   customThemes: CustomThemeDef[];
@@ -154,7 +155,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   introSubmitEnabled: false,
   introDbApiKey: '',
   // Downloads
-  enableDownloads: false,
+  enableDownloads: true,
+  wifiOnlyDownloads: true,
   useExternalPlayerForDownloads: false,
   // Theme defaults
   themeId: 'default',

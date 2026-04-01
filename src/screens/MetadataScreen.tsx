@@ -961,6 +961,7 @@ const MetadataScreen: React.FC = () => {
                 getPlayButtonText={watchProgressData.getPlayButtonText}
                 setBannerImage={assetData.setBannerImage}
                 groupedEpisodes={groupedEpisodes}
+                imdbId={imdbId || undefined}
                 // Trakt integration props
                 isAuthenticated={isAuthenticated}
                 isInWatchlist={isInWatchlist(id, type as 'movie' | 'show')}

@@ -1,0 +1,228 @@
+name: Sync Upstream Tags
+
+# Runs every 6 hours and can be triggered manually.
+# Detects new tags on NuvioMedia/NuvioMobile that are absent from this fork,
+# merges them with the `downloads` feature branch, and opens a PR for review.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      include_prereleases:
+        description: 'Include pre-release tags (e.g. 1.5.0-beta)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM_REPO: https://github.com/NuvioMedia/NuvioMobile.git
+  DOWNLOADS_BRANCH: downloads
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork main (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote and fetch tags
+        run: |
+          git remote add upstream "$UPSTREAM_REPO"
+          git fetch upstream --tags
+          git fetch origin --tags
+          git fetch origin "$DOWNLOADS_BRANCH"
+
+      - name: Identify new upstream tags
+        id: find_tags
+        run: |
+          # Collect all upstream tag names (strip peeled tag refs ^{})
+          git ls-remote --tags upstream \
+            | awk '{print $2}' \
+            | sed 's|refs/tags/||; s|\^{}||' \
+            | sort -u > /tmp/upstream_tags.txt
+
+          # Collect all tags already on the fork
+          git tag -l | sort -u > /tmp/fork_tags.txt
+
+          # New = upstream tags not yet on the fork
+          comm -23 /tmp/upstream_tags.txt /tmp/fork_tags.txt > /tmp/candidate_tags.txt
+
+          echo "--- Upstream tags ---"
+          cat /tmp/upstream_tags.txt
+          echo "--- Fork tags ---"
+          cat /tmp/fork_tags.txt
+          echo "--- Candidate (new) tags ---"
+          cat /tmp/candidate_tags.txt
+
+          # Apply semver filter
+          if [ "${{ inputs.include_prereleases }}" = "true" ]; then
+            # Accept any tag starting with a digit
+            grep -E '^[0-9]+\.[0-9]+\.[0-9]' /tmp/candidate_tags.txt | sort -V > /tmp/new_tags.txt || true
+          else
+            # Strict semver only: X.Y.Z (no pre-release suffix)
+            grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' /tmp/candidate_tags.txt | sort -V > /tmp/new_tags.txt || true
+          fi
+
+          echo "--- Tags to process ---"
+          cat /tmp/new_tags.txt
+
+          TAG_COUNT=$(wc -l < /tmp/new_tags.txt | tr -d ' ')
+          echo "tag_count=$TAG_COUNT" >> "$GITHUB_OUTPUT"
+
+          # Emit newline-separated list for use in the matrix step
+          TAGS=$(paste -sd ',' /tmp/new_tags.txt)
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
+      - name: Process new tags
+        if: steps.find_tags.outputs.tag_count > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ALL_NEW_TAGS=$(cat /tmp/new_tags.txt)
+          TOTAL=$(wc -l < /tmp/new_tags.txt | tr -d ' ')
+          INDEX=0
+
+          while IFS= read -r TAG; do
+            INDEX=$((INDEX + 1))
+            echo ""
+            echo "========================================="
+            echo "Processing tag: $TAG  ($INDEX / $TOTAL)"
+            echo "========================================="
+
+            BRANCH="release/${TAG}"
+
+            # --- Skip if release branch already exists on origin ---
+            if git ls-remote --exit-code origin "refs/heads/$BRANCH" > /dev/null 2>&1; then
+              echo "Branch $BRANCH already exists on origin -- skipping."
+              continue
+            fi
+
+            # --- Skip if an open PR already targets this branch ---
+            EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+            if [ -n "$EXISTING_PR" ]; then
+              echo "Open PR #$EXISTING_PR already exists for $BRANCH -- skipping."
+              continue
+            fi
+
+            # --- Ensure main is at latest fork HEAD ---
+            git checkout main
+            git pull origin main
+
+            # --- Merge upstream tag into main (fast-forward or merge commit) ---
+            echo "Merging upstream tag $TAG into main..."
+            UPSTREAM_COMMIT=$(git rev-list -n1 "upstream/$TAG" 2>/dev/null || git rev-list -n1 "refs/tags/$TAG")
+            if ! git merge "$UPSTREAM_COMMIT" --no-edit -m "chore: merge upstream tag $TAG"; then
+              echo "ERROR: Merge of upstream $TAG into main failed. Aborting."
+              git merge --abort || true
+              continue
+            fi
+
+            # --- Create integration branch ---
+            git checkout -b "$BRANCH"
+
+            # --- Merge downloads branch ---
+            MERGE_STATUS="clean"
+            CONFLICT_DETAILS=""
+
+            echo "Merging origin/$DOWNLOADS_BRANCH into $BRANCH..."
+            if git merge "origin/$DOWNLOADS_BRANCH" --no-edit -m "chore: merge downloads branch for $TAG"; then
+              MERGE_STATUS="clean"
+              echo "Downloads branch merged cleanly."
+            else
+              echo "Merge conflict detected. Collecting conflict markers..."
+              MERGE_STATUS="conflict"
+
+              # Collect conflict info before aborting
+              CONFLICT_FILES=$(git diff --name-only --diff-filter=U | head -20 | tr '\n' ' ')
+              CONFLICT_DETAILS="**Conflicting files:**\n\`\`\`\n${CONFLICT_FILES}\n\`\`\`\n\nPlease resolve conflicts manually by checking out the branch and running:\n\`\`\`bash\ngit checkout $BRANCH\ngit merge origin/$DOWNLOADS_BRANCH\n# resolve conflicts\ngit commit\ngit push origin $BRANCH\n\`\`\`"
+
+              git merge --abort
+
+              # Re-create a clean branch without the failed downloads merge,
+              # so the PR still exists and can be resolved manually
+              git checkout main
+              git branch -D "$BRANCH" 2>/dev/null || true
+              git checkout -b "$BRANCH"
+            fi
+
+            # --- Push integration branch ---
+            git push origin "$BRANCH"
+
+            # --- Ensure upstream-sync label exists ---
+            gh label create "upstream-sync" --color "0075ca" --description "Automated upstream tag sync" 2>/dev/null || true
+
+            # --- Build PR body ---
+            PENDING_NOTE=""
+            if [ "$TOTAL" -gt 1 ]; then
+              OTHER_TAGS=$(grep -v "^${TAG}$" /tmp/new_tags.txt | tr '\n' ' ')
+              PENDING_NOTE="> **Note:** This run also found additional new tags: \`${OTHER_TAGS}\`. Each will get its own PR.\n\n"
+            fi
+
+            if [ "$MERGE_STATUS" = "clean" ]; then
+              MERGE_SECTION="Merge status | Clean -- no conflicts"
+              MERGE_INSTRUCTIONS="No action required beyond reviewing the changes."
+            else
+              MERGE_SECTION="Merge status | **CONFLICT** -- \`downloads\` branch could not be merged automatically"
+              MERGE_INSTRUCTIONS="${CONFLICT_DETAILS}"
+            fi
+
+            PR_BODY="## Upstream sync: \`${TAG}\`
+
+${PENDING_NOTE}This PR was automatically created by the upstream sync workflow.
+
+| Field | Value |
+|-------|-------|
+| Upstream tag | \`${TAG}\` |
+| Upstream repo | [\`NuvioMedia/NuvioMobile\`](https://github.com/NuvioMedia/NuvioMobile) |
+| Integration branch | \`${BRANCH}\` |
+| ${MERGE_SECTION} |
+
+### What to do
+
+1. Review the diff to confirm upstream changes look correct.
+2. ${MERGE_INSTRUCTIONS}
+3. Merge this PR once satisfied. The \`tag-after-merge\` workflow will automatically:
+   - Create tag \`${TAG}\` on \`main\`
+   - Trigger the release build workflow to produce an APK
+   - Delete this integration branch
+
+### Do not merge if
+
+- There are unresolved conflicts (label \`merge-conflict\` will be present)
+- The diff introduces unexpected breaking changes"
+
+            # --- Create PR ---
+            LABELS="upstream-sync"
+            if [ "$MERGE_STATUS" = "conflict" ]; then
+              gh label create "merge-conflict" --color "e4e669" --description "PR has merge conflicts that need manual resolution" 2>/dev/null || true
+              LABELS="upstream-sync,merge-conflict"
+            fi
+
+            gh pr create \
+              --title "Upstream sync: ${TAG}" \
+              --body "$PR_BODY" \
+              --base main \
+              --head "$BRANCH" \
+              --label "$LABELS"
+
+            echo "PR created for $TAG"
+
+          done < /tmp/new_tags.txt
+
+      - name: No new tags found
+        if: steps.find_tags.outputs.tag_count == 0
+        run: echo "No new upstream tags found. Fork is up to date."

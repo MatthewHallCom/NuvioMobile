@@ -6,7 +6,6 @@ import {
   StatusBar,
   Dimensions,
   TouchableOpacity,
-  FlatList,
   RefreshControl,
   Alert,
   Platform,
@@ -34,6 +33,10 @@ import { useSettings } from '../hooks/useSettings';
 import { useTranslation } from 'react-i18next';
 import { VideoPlayerService } from '../services/videoPlayerService';
 import type { DownloadItem } from '../contexts/DownloadsContext';
+import * as FileSystem from 'expo-file-system/legacy';
+import { groupDownloadsByShow, getMovieDownloads, getOfflineImageUri } from '../services/offlineMetadataService';
+import type { GroupedShow } from '../services/offlineMetadataService';
+import { useNetwork } from '../contexts/NetworkContext';
 import { useToast } from '../contexts/ToastContext';
 import CustomAlert from '../components/CustomAlert';
 import ScreenHeader from '../components/common/ScreenHeader';
@@ -356,6 +359,7 @@ const DownloadsScreen: React.FC = () => {
   const { settings } = useSettings();
   const { t } = useTranslation();
   const { downloads, pauseDownload, resumeDownload, cancelDownload } = useDownloads();
+  const { isConnected } = useNetwork();
   const { showSuccess, showInfo } = useToast();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -363,11 +367,11 @@ const DownloadsScreen: React.FC = () => {
   const [showHelpAlert, setShowHelpAlert] = useState(false);
   const [showRemoveAlert, setShowRemoveAlert] = useState(false);
   const [pendingRemoveItem, setPendingRemoveItem] = useState<DownloadItem | null>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   // Scroll to top handler
   const scrollToTop = useCallback(() => {
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
 
   useScrollToTop('Downloads', scrollToTop);
@@ -388,6 +392,14 @@ const DownloadsScreen: React.FC = () => {
       }
     });
   }, [downloads, selectedFilter]);
+
+  // Offline sections data
+  const movieDownloads = useMemo(() => getMovieDownloads(downloads), [downloads]);
+  const seriesGroups = useMemo(() => groupDownloadsByShow(downloads), [downloads]);
+  const activeDownloads = useMemo(
+    () => downloads.filter(d => d.status !== 'completed'),
+    [downloads]
+  );
 
   // Statistics
   const stats = useMemo(() => {
@@ -417,16 +429,58 @@ const DownloadsScreen: React.FC = () => {
       Alert.alert(t('downloads.not_ready'), t('downloads.not_ready_desc'));
       return;
     }
-    const uri = (item as any).fileUri || (item as any).sourceUrl;
-    if (!uri) return;
+    let uri = item.fileUri;
+    if (!uri) {
+      Alert.alert('Playback Error', 'Downloaded file path is missing. Try removing and re-downloading.');
+      return;
+    }
 
-    // Infer videoType and mkv
+    // Verify the file actually exists before attempting playback
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (!fileInfo.exists) {
+        // If file has no video extension, check if a renamed version with .mp4 exists
+        const hasVideoExt = /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ts)$/i.test(uri);
+        if (!hasVideoExt) {
+          const mp4Uri = uri + '.mp4';
+          const mp4Info = await FileSystem.getInfoAsync(mp4Uri);
+          if (mp4Info.exists) {
+            uri = mp4Uri;
+          } else {
+            Alert.alert('File Not Found', 'The downloaded file could not be found. Try removing and re-downloading.');
+            return;
+          }
+        } else {
+          Alert.alert('File Not Found', 'The downloaded file could not be found. Try removing and re-downloading.');
+          return;
+        }
+      } else {
+        // File exists — if it has no video extension, rename it so the native player can detect format
+        const hasVideoExt = /\.(mp4|mkv|webm|avi|mov|flv|mpg|mpeg|ts)$/i.test(uri);
+        if (!hasVideoExt) {
+          const newUri = uri + '.mp4';
+          try {
+            await FileSystem.moveAsync({ from: uri, to: newUri });
+            uri = newUri;
+          } catch {
+            // If rename fails, try playing with original path anyway
+          }
+        }
+      }
+    } catch {
+      Alert.alert('Playback Error', 'Could not access the downloaded file.');
+      return;
+    }
+
+    // Infer videoType from file extension
     const lower = String(uri).toLowerCase();
     const isMkv = /\.mkv(\?|$)/i.test(lower) || /(?:[?&]ext=|container=|format=)mkv\b/i.test(lower);
     const isM3u8 = /\.m3u8(\?|$)/i.test(lower);
     const isMpd = /\.mpd(\?|$)/i.test(lower);
     const isMp4 = /\.mp4(\?|$)/i.test(lower);
-    const videoType = isM3u8 ? 'm3u8' : isMpd ? 'mpd' : isMp4 ? 'mp4' : undefined;
+    const hasExtension = /\.\w{2,5}$/.test(lower.replace(/\?.*$/, ''));
+    // If no recognized extension, default to mp4 for local files (most common container from debrid services)
+    const videoType = isM3u8 ? 'm3u8' : isMpd ? 'mpd' : isMp4 ? 'mp4' : (!hasExtension ? 'mp4' : undefined);
 
     // Use external player if enabled in settings
     if (settings.useExternalPlayerForDownloads) {
@@ -669,22 +723,22 @@ const DownloadsScreen: React.FC = () => {
         )}
       </ScreenHeader>
 
+      {/* Offline Banner */}
+      {!isConnected && downloads.length > 0 && (
+        <View style={[styles.offlineBanner, { backgroundColor: currentTheme.colors.elevation1 }]}>
+          <MaterialCommunityIcons name="wifi-off" size={16} color={currentTheme.colors.primary} />
+          <Text style={[styles.offlineBannerText, { color: currentTheme.colors.text }]}>
+            You're offline — viewing downloaded content
+          </Text>
+        </View>
+      )}
+
       {/* Content */}
       {downloads.length === 0 ? (
         <EmptyDownloadsState navigation={navigation} />
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={filteredDownloads}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <DownloadItemComponent
-              item={item}
-              onPress={handleDownloadPress}
-              onAction={handleDownloadAction}
-              onRequestRemove={handleRequestRemove}
-            />
-          )}
+        <ScrollView
+          ref={scrollViewRef}
           style={{ backgroundColor: currentTheme.colors.darkBackground }}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
@@ -696,7 +750,78 @@ const DownloadsScreen: React.FC = () => {
               colors={[currentTheme.colors.primary]}
             />
           }
-          ListEmptyComponent={() => (
+        >
+          {/* Active / Queued / Paused / Error downloads */}
+          {activeDownloads.map(item => (
+            <DownloadItemComponent
+              key={item.id}
+              item={item}
+              onPress={handleDownloadPress}
+              onAction={handleDownloadAction}
+              onRequestRemove={handleRequestRemove}
+            />
+          ))}
+
+          {/* Completed Movies Section */}
+          {movieDownloads.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={[styles.sectionHeader, { color: currentTheme.colors.text }]}>Movies</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.posterRow}>
+                {movieDownloads.map(item => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.movieCard}
+                    onPress={() => handleDownloadPress(item)}
+                    activeOpacity={0.8}
+                  >
+                    <FastImage
+                      source={{ uri: getOfflineImageUri(item, 'poster') }}
+                      style={[styles.moviePoster, { borderRadius: settings.posterBorderRadius ?? 12 }]}
+                      resizeMode={FastImage.resizeMode.cover}
+                    />
+                    <Text
+                      style={[styles.movieTitle, { color: currentTheme.colors.text }]}
+                      numberOfLines={2}
+                    >
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Completed Series Section */}
+          {Object.keys(seriesGroups).length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={[styles.sectionHeader, { color: currentTheme.colors.text }]}>Series</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.posterRow}>
+                {Object.values(seriesGroups).map(group => (
+                  <TouchableOpacity
+                    key={group.contentId}
+                    style={styles.movieCard}
+                    onPress={() => navigation.navigate('OfflineShowDetail', { contentId: group.contentId })}
+                    activeOpacity={0.8}
+                  >
+                    <FastImage
+                      source={{ uri: getOfflineImageUri(group, 'poster') }}
+                      style={[styles.moviePoster, { borderRadius: settings.posterBorderRadius ?? 12 }]}
+                      resizeMode={FastImage.resizeMode.cover}
+                    />
+                    <Text
+                      style={[styles.movieTitle, { color: currentTheme.colors.text }]}
+                      numberOfLines={2}
+                    >
+                      {group.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Show empty filter message if filter is active and nothing matches */}
+          {activeDownloads.length === 0 && movieDownloads.length === 0 && Object.keys(seriesGroups).length === 0 && (
             <View style={styles.emptyFilterContainer}>
               <MaterialCommunityIcons
                 name="filter-off"
@@ -711,7 +836,7 @@ const DownloadsScreen: React.FC = () => {
               </Text>
             </View>
           )}
-        />
+        </ScrollView>
       )}
 
       {/* Help Alert */}
@@ -997,6 +1122,44 @@ const styles = StyleSheet.create({
   },
   emptyFilterSubtitle: {
     fontSize: 14,
+    textAlign: 'center',
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  offlineBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  posterRow: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  movieCard: {
+    width: HORIZONTAL_ITEM_WIDTH,
+  },
+  moviePoster: {
+    width: HORIZONTAL_ITEM_WIDTH,
+    height: HORIZONTAL_POSTER_HEIGHT,
+    marginBottom: 6,
+  },
+  movieTitle: {
+    fontSize: 12,
+    fontWeight: '500',
     textAlign: 'center',
   },
 });
