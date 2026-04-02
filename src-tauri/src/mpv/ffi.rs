@@ -103,6 +103,52 @@ pub struct MpvFunctions {
     _lib: libloading::Library,
 }
 
+// --- Native helper library (libnuvio_mpv) ---
+// Handles CAMetalLayer creation and mpv render context on macOS.
+
+pub enum nuvio_mpv_ctx {}
+
+pub type NuvioMpvCreate = unsafe extern "C" fn(mpv_handle: *mut c_void, ns_view: *mut c_void) -> *mut nuvio_mpv_ctx;
+pub type NuvioMpvRenderUpdate = unsafe extern "C" fn(ctx: *mut nuvio_mpv_ctx) -> c_int;
+pub type NuvioMpvResize = unsafe extern "C" fn(ctx: *mut nuvio_mpv_ctx, width: u32, height: u32) -> c_int;
+pub type NuvioMpvSyncLayer = unsafe extern "C" fn(ctx: *mut nuvio_mpv_ctx);
+pub type NuvioMpvDestroy = unsafe extern "C" fn(ctx: *mut nuvio_mpv_ctx);
+pub type NuvioMpvRenderNeeded = unsafe extern "C" fn(ctx: *mut nuvio_mpv_ctx) -> c_int;
+
+pub struct NuvioMpvFunctions {
+    pub create: NuvioMpvCreate,
+    pub render_update: NuvioMpvRenderUpdate,
+    pub resize: NuvioMpvResize,
+    pub sync_layer: NuvioMpvSyncLayer,
+    pub destroy: NuvioMpvDestroy,
+    pub render_needed: NuvioMpvRenderNeeded,
+    _lib: libloading::Library,
+}
+
+impl NuvioMpvFunctions {
+    pub unsafe fn load(lib_path: &str) -> Result<Self, String> {
+        let lib = libloading::Library::new(lib_path)
+            .map_err(|e| format!("Failed to load libnuvio_mpv from {}: {}", lib_path, e))?;
+
+        macro_rules! load_fn {
+            ($name:expr) => {
+                *lib.get::<*const ()>($name)
+                    .map_err(|e| format!("Failed to load {}: {}", String::from_utf8_lossy($name), e))?
+            };
+        }
+
+        Ok(Self {
+            create: std::mem::transmute(load_fn!(b"nuvio_mpv_create\0")),
+            render_update: std::mem::transmute(load_fn!(b"nuvio_mpv_render_update\0")),
+            resize: std::mem::transmute(load_fn!(b"nuvio_mpv_resize\0")),
+            sync_layer: std::mem::transmute(load_fn!(b"nuvio_mpv_sync_layer\0")),
+            destroy: std::mem::transmute(load_fn!(b"nuvio_mpv_destroy\0")),
+            render_needed: std::mem::transmute(load_fn!(b"nuvio_mpv_render_needed\0")),
+            _lib: lib,
+        })
+    }
+}
+
 impl MpvFunctions {
     /// Load libmpv from the given path.
     /// On macOS: typically libmpv.2.dylib from libs/mpv/ or /opt/homebrew/lib/
