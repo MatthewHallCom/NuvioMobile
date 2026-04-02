@@ -1,10 +1,9 @@
 // nuvio_mpv.m — Native MPV rendering helper for macOS.
-// Creates a CAMetalLayer sublayer in the Tauri NSView and uses
-// mpv_render_context to render video frames via Metal/MoltenVK.
+// Creates a CAMetalLayer sublayer in the Tauri NSView.
+// In mode 0 (default): sets vo=libmpv and mpv drives its own rendering.
+// In mode 2 (render context): uses mpv_render_context for explicit frame control.
 //
-// Based on the soia pattern (FengZeng/soia libsoia_utils).
-// Key insight: MPV never manages its own window. We give it a
-// CAMetalLayer to render into, and the Tauri WebView composites on top.
+// API surface matches soia's libsoia_utils for compatibility.
 
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/QuartzCore.h>
@@ -15,105 +14,85 @@
 
 #include "nuvio_mpv.h"
 
-// --- mpv render API types (loaded dynamically) ---
+// --- mpv function pointers (loaded from already-loaded libmpv) ---
 
-typedef struct mpv_handle mpv_handle;
+typedef void *mpv_handle;
+typedef void *mpv_render_context;
 
-typedef enum {
-    MPV_RENDER_PARAM_INVALID = 0,
-    MPV_RENDER_PARAM_API_TYPE = 1,
-    MPV_RENDER_PARAM_OPENGL_INIT_PARAMS = 2,
-    MPV_RENDER_PARAM_OPENGL_FBO = 3,
-    MPV_RENDER_PARAM_FLIP_Y = 4,
-    MPV_RENDER_PARAM_DEPTH = 5,
-    MPV_RENDER_PARAM_ICC_PROFILE = 6,
-    MPV_RENDER_PARAM_AMBIENT_LIGHT = 7,
-    MPV_RENDER_PARAM_X11_DISPLAY = 8,
-    MPV_RENDER_PARAM_WL_DISPLAY = 9,
-    MPV_RENDER_PARAM_ADVANCED_CONTROL = 10,
-    MPV_RENDER_PARAM_NEXT_FRAME_INFO = 11,
-    MPV_RENDER_PARAM_BLOCK_FOR_TARGET_TIME = 12,
-    MPV_RENDER_PARAM_SKIP_RENDERING = 13,
-    MPV_RENDER_PARAM_DRM_DRAW_SURFACE_SIZE = 15,
-    MPV_RENDER_PARAM_DRM_DISPLAY_V2 = 16,
-    MPV_RENDER_PARAM_SW_SIZE = 17,
-    MPV_RENDER_PARAM_SW_FORMAT = 18,
-    MPV_RENDER_PARAM_SW_STRIDE = 19,
-    MPV_RENDER_PARAM_SW_POINTER = 20,
-} mpv_render_param_type;
-
-typedef struct mpv_render_param {
-    mpv_render_param_type type;
+typedef struct {
+    int type;
     void *data;
 } mpv_render_param;
 
-typedef struct mpv_render_context mpv_render_context;
-
-// Function pointer types for mpv render API
-typedef int (*mpv_render_context_create_fn)(mpv_render_context **res, mpv_handle *mpv, mpv_render_param *params);
-typedef void (*mpv_render_context_set_update_callback_fn)(mpv_render_context *ctx, void (*callback)(void *cb_ctx), void *cb_ctx);
-typedef int (*mpv_render_context_render_fn)(mpv_render_context *ctx, mpv_render_param *params);
-typedef void (*mpv_render_context_report_swap_fn)(mpv_render_context *ctx);
-typedef void (*mpv_render_context_free_fn)(mpv_render_context *ctx);
-typedef uint64_t (*mpv_render_context_update_fn)(mpv_render_context *ctx);
-typedef int (*mpv_set_option_string_fn)(mpv_handle *ctx, const char *name, const char *data);
+typedef int (*fn_mpv_set_option_string)(mpv_handle, const char *, const char *);
+typedef int (*fn_mpv_render_context_create)(mpv_render_context *, mpv_handle, mpv_render_param *);
+typedef void (*fn_mpv_render_context_set_update_callback)(mpv_render_context, void (*)(void *), void *);
+typedef uint64_t (*fn_mpv_render_context_update)(mpv_render_context);
+typedef int (*fn_mpv_render_context_render)(mpv_render_context, mpv_render_param *);
+typedef void (*fn_mpv_render_context_report_swap)(mpv_render_context);
+typedef void (*fn_mpv_render_context_free)(mpv_render_context);
 
 // --- Context struct ---
 
 struct nuvio_mpv_ctx {
-    mpv_handle *mpv;
-    mpv_render_context *render_ctx;
+    mpv_handle mpv;
+    mpv_render_context render_ctx;
     NSView *ns_view;
     CAMetalLayer *metal_layer;
     id<MTLDevice> metal_device;
+    int mode; // 0 = native (vo=libmpv), 2 = render context
     atomic_int render_needed;
 
-    // Loaded function pointers
-    mpv_render_context_create_fn render_context_create;
-    mpv_render_context_set_update_callback_fn render_context_set_update_callback;
-    mpv_render_context_render_fn render_context_render;
-    mpv_render_context_report_swap_fn render_context_report_swap;
-    mpv_render_context_free_fn render_context_free;
-    mpv_render_context_update_fn render_context_update;
-    mpv_set_option_string_fn set_option_string;
+    // mpv function pointers
+    fn_mpv_set_option_string set_option_string;
+    fn_mpv_render_context_create render_context_create;
+    fn_mpv_render_context_set_update_callback render_context_set_update_callback;
+    fn_mpv_render_context_update render_context_update;
+    fn_mpv_render_context_render render_context_render;
+    fn_mpv_render_context_report_swap render_context_report_swap;
+    fn_mpv_render_context_free render_context_free;
 };
 
-// --- Render update callback (called by mpv when a new frame is ready) ---
+// --- Render update callback ---
 
-static void render_update_callback(void *cb_ctx) {
+static void on_render_update(void *cb_ctx) {
     struct nuvio_mpv_ctx *ctx = (struct nuvio_mpv_ctx *)cb_ctx;
     atomic_store(&ctx->render_needed, 1);
 }
 
-// --- Public API implementation ---
+// --- Load mpv symbols from already-loaded library ---
+
+static int load_mpv_symbols(struct nuvio_mpv_ctx *ctx) {
+    // dlopen(NULL) searches already-loaded libraries
+    void *lib = dlopen(NULL, RTLD_NOW);
+    if (!lib) return -1;
+
+    ctx->set_option_string = dlsym(lib, "mpv_set_option_string");
+    ctx->render_context_create = dlsym(lib, "mpv_render_context_create");
+    ctx->render_context_set_update_callback = dlsym(lib, "mpv_render_context_set_update_callback");
+    ctx->render_context_update = dlsym(lib, "mpv_render_context_update");
+    ctx->render_context_render = dlsym(lib, "mpv_render_context_render");
+    ctx->render_context_report_swap = dlsym(lib, "mpv_render_context_report_swap");
+    ctx->render_context_free = dlsym(lib, "mpv_render_context_free");
+
+    dlclose(lib);
+    return ctx->set_option_string ? 0 : -1;
+}
+
+// --- Public API ---
 
 nuvio_mpv_ctx* nuvio_mpv_create(void* mpv_handle_ptr, void* ns_view_ptr) {
     @autoreleasepool {
         struct nuvio_mpv_ctx *ctx = calloc(1, sizeof(struct nuvio_mpv_ctx));
         if (!ctx) return NULL;
 
-        ctx->mpv = (mpv_handle *)mpv_handle_ptr;
+        ctx->mpv = mpv_handle_ptr;
         ctx->ns_view = (__bridge NSView *)ns_view_ptr;
+        ctx->mode = 0; // Default: native rendering (vo=libmpv)
+        atomic_init(&ctx->render_needed, 0);
 
-        // Load mpv render API functions dynamically
-        // (libmpv should already be loaded in the process)
-        void *lib = dlopen(NULL, RTLD_NOW); // search already-loaded libs
-        if (!lib) {
-            NSLog(@"[nuvio_mpv] Failed to dlopen(NULL): %s", dlerror());
-            free(ctx);
-            return NULL;
-        }
-
-        ctx->render_context_create = dlsym(lib, "mpv_render_context_create");
-        ctx->render_context_set_update_callback = dlsym(lib, "mpv_render_context_set_update_callback");
-        ctx->render_context_render = dlsym(lib, "mpv_render_context_render");
-        ctx->render_context_report_swap = dlsym(lib, "mpv_render_context_report_swap");
-        ctx->render_context_free = dlsym(lib, "mpv_render_context_free");
-        ctx->render_context_update = dlsym(lib, "mpv_render_context_update");
-        ctx->set_option_string = dlsym(lib, "mpv_set_option_string");
-
-        if (!ctx->render_context_create || !ctx->render_context_render) {
-            NSLog(@"[nuvio_mpv] Failed to find mpv render API functions");
+        if (load_mpv_symbols(ctx) != 0) {
+            NSLog(@"[nuvio_mpv] Failed to load mpv symbols");
             free(ctx);
             return NULL;
         }
@@ -132,48 +111,40 @@ nuvio_mpv_ctx* nuvio_mpv_create(void* mpv_handle_ptr, void* ns_view_ptr) {
         ctx->metal_layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
         ctx->metal_layer.framebufferOnly = YES;
         ctx->metal_layer.opaque = YES;
-        ctx->metal_layer.contentsScale = ctx->ns_view.window.backingScaleFactor;
 
-        // Set layer frame to match view bounds
-        ctx->metal_layer.frame = ctx->ns_view.bounds;
+        if (ctx->ns_view.window) {
+            ctx->metal_layer.contentsScale = ctx->ns_view.window.backingScaleFactor;
+        } else {
+            ctx->metal_layer.contentsScale = 2.0; // Retina default
+        }
 
-        // Insert as sublayer at index 0 (behind the WebView content)
-        dispatch_async(dispatch_get_main_queue(), ^{
+        // Insert as sublayer at index 0 (behind the WebView)
+        dispatch_sync(dispatch_get_main_queue(), ^{
             if (!ctx->ns_view.layer) {
                 ctx->ns_view.wantsLayer = YES;
             }
+            ctx->metal_layer.frame = ctx->ns_view.bounds;
             [ctx->ns_view.layer insertSublayer:ctx->metal_layer atIndex:0];
         });
 
-        // Tell mpv to use gpu-next with the Metal device
+        // Mode 0: tell mpv to render using its own vo into this view
+        // vo=libmpv tells mpv to use the native rendering pipeline
         if (ctx->set_option_string) {
             ctx->set_option_string(ctx->mpv, "vo", "gpu-next");
             ctx->set_option_string(ctx->mpv, "gpu-api", "vulkan");
         }
 
-        // Create mpv render context with the Metal layer
-        // mpv uses MoltenVK (Vulkan-over-Metal) internally
-        mpv_render_param params[] = {
-            {MPV_RENDER_PARAM_API_TYPE, (void *)"sw"}, // placeholder, actual rendering is via --wid-less vulkan
-            {MPV_RENDER_PARAM_INVALID, NULL},
-        };
-
-        // For now, we use a simpler approach: set the wid to the Metal layer
-        // The full render context approach requires MoltenVK setup.
-        // Instead, we'll embed mpv into the view via the layer.
-
-        // Register the update callback
-        if (ctx->render_context_set_update_callback && ctx->render_ctx) {
-            ctx->render_context_set_update_callback(ctx->render_ctx, render_update_callback, ctx);
-        }
-
-        NSLog(@"[nuvio_mpv] Created render context with Metal device: %@", ctx->metal_device.name);
+        NSLog(@"[nuvio_mpv] Created context (mode=%d) with Metal device: %@",
+              ctx->mode, ctx->metal_device.name);
         return ctx;
     }
 }
 
 int nuvio_mpv_render_update(nuvio_mpv_ctx* ctx) {
-    if (!ctx || !ctx->render_ctx) return -1;
+    if (!ctx) return -1;
+
+    // Only meaningful in render context mode (mode=2)
+    if (ctx->mode != 2 || !ctx->render_ctx) return 0;
 
     if (atomic_exchange(&ctx->render_needed, 0)) {
         if (ctx->render_context_update) {
@@ -197,7 +168,9 @@ void nuvio_mpv_sync_layer(nuvio_mpv_ctx* ctx) {
 
     dispatch_async(dispatch_get_main_queue(), ^{
         ctx->metal_layer.frame = ctx->ns_view.bounds;
-        ctx->metal_layer.contentsScale = ctx->ns_view.window.backingScaleFactor;
+        if (ctx->ns_view.window) {
+            ctx->metal_layer.contentsScale = ctx->ns_view.window.backingScaleFactor;
+        }
     });
 }
 
@@ -206,6 +179,7 @@ void nuvio_mpv_destroy(nuvio_mpv_ctx* ctx) {
 
     if (ctx->render_ctx && ctx->render_context_free) {
         ctx->render_context_free(ctx->render_ctx);
+        ctx->render_ctx = NULL;
     }
 
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -213,7 +187,7 @@ void nuvio_mpv_destroy(nuvio_mpv_ctx* ctx) {
     });
 
     free(ctx);
-    NSLog(@"[nuvio_mpv] Destroyed render context");
+    NSLog(@"[nuvio_mpv] Destroyed context");
 }
 
 int nuvio_mpv_render_needed(nuvio_mpv_ctx* ctx) {
