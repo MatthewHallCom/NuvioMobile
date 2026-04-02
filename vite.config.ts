@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react({
       babel: {
-        plugins: ['react-native-reanimated/plugin'],
+        plugins: [],
       },
     }),
   ],
@@ -50,6 +50,7 @@ export default defineConfig(({ mode }) => {
       'expo-blur': path.resolve(__dirname, 'src/stubs/blur.web.tsx'),
       '@react-native-community/slider': path.resolve(__dirname, 'src/stubs/slider.web.tsx'),
       'react-native-image-colors': path.resolve(__dirname, 'src/stubs/image-colors.web.ts'),
+      'react-native-reanimated': path.resolve(__dirname, 'src/stubs/reanimated.web.ts'),
       'react-native-reanimated-carousel': path.resolve(__dirname, 'src/stubs/carousel.web.tsx'),
       'react-native-wheel-color-picker': path.resolve(__dirname, 'src/stubs/color-picker.web.tsx'),
       'react-native-markdown-display': path.resolve(__dirname, 'src/stubs/markdown.web.tsx'),

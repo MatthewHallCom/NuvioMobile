@@ -14,6 +14,13 @@
         overflow: hidden;
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       }
+      /* RNW injects a wrapper div inside #root that needs explicit height
+         for flex:1 children to expand to fill the viewport */
+      #root > div {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
       #loading-msg {
         display: flex;
         align-items: center;

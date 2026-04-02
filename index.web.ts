@@ -26,13 +26,25 @@ if (typeof globalThis._scheduleOnRuntime === 'undefined') {
   globalThis._scheduleOnRuntime = () => {};
 }
 
-// Pre-seed storage to skip onboarding on fresh desktop installs
-if (!localStorage.getItem('default:hasCompletedOnboarding')) {
-  localStorage.setItem('default:hasCompletedOnboarding', 'true');
+// Shim require() for React Native code that uses it for assets or
+// platform-guarded dynamic imports. Vite uses ESM so require() doesn't exist.
+// Most require() calls in RN are for images/JSON assets or are behind
+// Platform.OS checks that won't execute on web.
+if (typeof globalThis.require === 'undefined') {
+  (globalThis as any).require = (id: string) => {
+    console.warn(`[web] require("${id}") called — returning empty stub`);
+    return {};
+  };
 }
 
 import { AppRegistry } from 'react-native';
 import App from './App';
+
+// Pre-seed storage to skip onboarding on fresh desktop installs
+// Must run after imports so MMKV stub hydrates from localStorage
+if (!localStorage.getItem('default:hasCompletedOnboarding')) {
+  localStorage.setItem('default:hasCompletedOnboarding', 'true');
+}
 
 AppRegistry.registerComponent('Nuvio', () => App);
 AppRegistry.runApplication('Nuvio', {

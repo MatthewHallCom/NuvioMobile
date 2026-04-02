@@ -3,6 +3,7 @@ import { NavigationContainer, DefaultTheme as NavigationDefaultTheme, DarkTheme 
 import { createNativeStackNavigator, NativeStackNavigationOptions, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator, BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useColorScheme, Platform, Animated, StatusBar, TouchableOpacity, View, Text, AppState, Easing, Dimensions, DeviceEventEmitter } from 'react-native';
+import { useSettings } from '../hooks/useSettings';
 import { mmkvStorage } from '../services/mmkvStorage';
 import { PaperProvider, MD3DarkTheme, MD3LightTheme, adaptNavigationTheme } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
@@ -565,9 +566,7 @@ const WrappedScreen: React.FC<{ Screen: React.ComponentType<any> }> = ({ Screen 
 const MainTabs = () => {
   const { t } = useTranslation();
   const { currentTheme } = useTheme();
-  const { settings } = require('../hooks/useSettings');
-  const { useSettings: useSettingsHook } = require('../hooks/useSettings');
-  const { settings: appSettings } = useSettingsHook();
+  const { settings: appSettings } = useSettings();
   const [hasUpdateBadge, setHasUpdateBadge] = React.useState(false);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const lastTapRef = useRef<Record<string, number>>({});
