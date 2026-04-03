@@ -115,6 +115,7 @@ export function createMMKV(config?: { id?: string }): MMKVInstance {
     },
     set: (key, value) => persistSet(key, value),
     delete: (key) => persistDelete(key),
+    remove: (key) => persistDelete(key),
     contains: (key) => cache.has(key),
     getAllKeys: () => Array.from(cache.keys()),
     clearAll: () => {
@@ -144,6 +145,7 @@ export class MMKV {
   getBoolean(key: string) { return this.instance.getBoolean(key); }
   set(key: string, value: string | number | boolean) { this.instance.set(key, value); }
   delete(key: string) { this.instance.delete(key); }
+  remove(key: string) { this.instance.delete(key); }
   contains(key: string) { return this.instance.contains(key); }
   getAllKeys() { return this.instance.getAllKeys(); }
   clearAll() { this.instance.clearAll(); }

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import svgr from 'vite-plugin-svgr';
 import path from 'path';
 
 const extensions = [
@@ -21,6 +22,13 @@ export default defineConfig(({ mode }) => {
 
   return {
   plugins: [
+    svgr({
+      svgrOptions: {
+        icon: true,
+        exportType: 'default',
+      },
+      include: '**/*.svg',
+    }),
     react({
       babel: {
         plugins: [],

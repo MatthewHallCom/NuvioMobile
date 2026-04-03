@@ -14,7 +14,7 @@ interface LottieViewProps {
 }
 
 const LottieView = React.forwardRef<any, LottieViewProps>(
-  ({ style, ...props }, ref) => (
+  ({ style, source, children, ...props }, ref) => (
     <View ref={ref} style={style} />
   ),
 );

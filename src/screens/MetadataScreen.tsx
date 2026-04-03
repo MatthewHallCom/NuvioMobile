@@ -560,8 +560,13 @@ const MetadataScreen: React.FC = () => {
 
   // Trigger loading screen exit animation when content is ready
   useEffect(() => {
-    if (isReady && isContentReady && !loadingScreenExited && loadingScreenRef.current) {
-      loadingScreenRef.current.exit();
+    if (isReady && isContentReady && !loadingScreenExited) {
+      if (Platform.OS === 'web') {
+        // Skip exit animation on web — reanimated callbacks don't fire
+        setLoadingScreenExited(true);
+      } else if (loadingScreenRef.current) {
+        loadingScreenRef.current.exit();
+      }
     }
   }, [isReady, isContentReady, loadingScreenExited]);
 

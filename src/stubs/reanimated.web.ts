@@ -15,8 +15,11 @@ function useDerivedValue(updater: () => any) {
 }
 
 // --- Animated styles ---
-function useAnimatedStyle(updater: () => any) {
-  try { return updater(); } catch { return {}; }
+// Return empty style — let CSS/inline styles handle everything.
+// Animated entrance/exit styles (opacity, transform) are skipped on web
+// so content is always immediately visible.
+function useAnimatedStyle(_updater: () => any) {
+  return {};
 }
 
 function useAnimatedProps(updater: () => any) {

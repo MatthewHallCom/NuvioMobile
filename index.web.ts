@@ -32,13 +32,22 @@ if (typeof globalThis._scheduleOnRuntime === 'undefined') {
 // Platform.OS checks that won't execute on web.
 if (typeof globalThis.require === 'undefined') {
   (globalThis as any).require = (id: string) => {
+    // Asset requires (images, JSON, lottie) — return null to avoid text node errors
+    if (/\.(json|png|jpg|jpeg|gif|svg|zip|lottie)$/.test(id)) {
+      return null;
+    }
     console.warn(`[web] require("${id}") called — returning empty stub`);
     return {};
   };
 }
 
-import { AppRegistry } from 'react-native';
+import { AppRegistry, BackHandler } from 'react-native';
 import App from './App';
+
+// Patch BackHandler for web — RNW throws on addEventListener
+BackHandler.addEventListener = function(_event: string, _handler: () => boolean) {
+  return { remove: () => {} };
+};
 
 // Pre-seed storage to skip onboarding on fresh desktop installs
 // Must run after imports so MMKV stub hydrates from localStorage
