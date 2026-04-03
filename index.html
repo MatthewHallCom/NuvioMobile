@@ -24,7 +24,12 @@
         background: #0a0a1a;
         color: #fff;
         overflow: hidden;
+        overscroll-behavior: none;
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      body {
+        position: fixed;
+        width: 100%;
       }
       /* RNW injects a wrapper div inside #root that needs explicit height
          for flex:1 children to expand to fill the viewport */

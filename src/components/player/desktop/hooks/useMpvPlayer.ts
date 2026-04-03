@@ -52,48 +52,63 @@ export function useMpvPlayer() {
 
   // Set up event listeners
   useEffect(() => {
+    let cancelled = false;
+
     const setupListeners = async () => {
-      const unlisteners: UnlistenFn[] = [];
+      try {
+        const unlisteners: UnlistenFn[] = [];
 
-      unlisteners.push(
-        await listen<ProgressUpdate>('mpv-progress-update', (event) => {
-          setState((prev) => ({
-            ...prev,
-            currentTime: event.payload.time_pos,
-            duration: event.payload.duration,
-            isPlaying: event.payload.is_playing,
-            isBuffering: event.payload.is_buffering,
-          }));
-        }),
-      );
+        unlisteners.push(
+          await listen<ProgressUpdate>('mpv-progress-update', (event) => {
+            if (!cancelled) {
+              setState((prev) => ({
+                ...prev,
+                currentTime: event.payload.time_pos,
+                duration: event.payload.duration,
+                isPlaying: event.payload.is_playing,
+                isBuffering: event.payload.is_buffering,
+              }));
+            }
+          }),
+        );
 
-      unlisteners.push(
-        await listen<EndFileEvent>('mpv-end-file', (event) => {
-          setState((prev) => ({ ...prev, isPlaying: false }));
-          if (event.payload.reason === 'error') {
-            setError('Playback error');
-          }
-        }),
-      );
+        unlisteners.push(
+          await listen<EndFileEvent>('mpv-end-file', (event) => {
+            if (!cancelled) {
+              setState((prev) => ({ ...prev, isPlaying: false }));
+              if (event.payload.reason === 'error') {
+                setError('Playback error');
+              }
+            }
+          }),
+        );
 
-      unlisteners.push(
-        await listen('mpv-file-loaded', () => {
-          setError(null);
-        }),
-      );
+        unlisteners.push(
+          await listen('mpv-file-loaded', () => {
+            if (!cancelled) setError(null);
+          }),
+        );
 
-      unlisteners.push(
-        await listen('mpv-playback-restart', () => {
-          setState((prev) => ({ ...prev, isBuffering: false }));
-        }),
-      );
+        unlisteners.push(
+          await listen('mpv-playback-restart', () => {
+            if (!cancelled) setState((prev) => ({ ...prev, isBuffering: false }));
+          }),
+        );
 
-      unlistenersRef.current = unlisteners;
+        if (cancelled) {
+          unlisteners.forEach((unlisten) => unlisten());
+        } else {
+          unlistenersRef.current = unlisteners;
+        }
+      } catch {
+        // Component unmounted before listeners were set up — ignore
+      }
     };
 
     setupListeners();
 
     return () => {
+      cancelled = true;
       unlistenersRef.current.forEach((unlisten) => unlisten());
       unlistenersRef.current = [];
     };

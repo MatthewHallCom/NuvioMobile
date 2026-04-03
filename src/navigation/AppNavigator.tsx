@@ -44,6 +44,7 @@ import SyncSettingsScreen from '../screens/SyncSettingsScreen';
 import MetadataScreen from '../screens/MetadataScreen';
 import KSPlayerCore from '../components/player/KSPlayerCore';
 import AndroidVideoPlayer from '../components/player/AndroidVideoPlayer';
+import DesktopPlayerScreen from '../screens/DesktopPlayerScreen';
 import CatalogScreen from '../screens/CatalogScreen';
 import AddonsScreen from '../screens/AddonsScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -159,6 +160,27 @@ export type RootStackParamList = {
     groupedEpisodes?: { [seasonNumber: number]: any[] };
   };
   PlayerAndroid: {
+    uri: string;
+    title?: string;
+    season?: number;
+    episode?: number;
+    episodeTitle?: string;
+    quality?: string;
+    year?: number;
+    streamProvider?: string;
+    streamName?: string;
+    headers?: { [key: string]: string };
+    id?: string;
+    type?: string;
+    episodeId?: string;
+    imdbId?: string;
+    availableStreams?: { [providerId: string]: { streams: any[]; addonName: string } };
+    backdrop?: string;
+    videoType?: string;
+    releaseDate?: string;
+    groupedEpisodes?: { [seasonNumber: number]: any[] };
+  };
+  PlayerWeb: {
     uri: string;
     title?: string;
     season?: number;
@@ -535,7 +557,7 @@ const TabScreenWrapper: React.FC<{ children: React.ReactNode }> = ({ children })
       backgroundColor: colors.darkBackground,
       // Lock the layout to prevent shifts
       position: 'relative',
-      overflow: 'hidden'
+      overflow: Platform.OS === 'web' ? undefined : 'hidden'
     }}>
       {/* Reserve consistent space for the header area on all screens */}
       <View style={{
@@ -1236,6 +1258,15 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
               contentStyle: {
                 backgroundColor: currentTheme.colors.darkBackground,
               },
+              // cardStyle is the @react-navigation/stack equivalent of contentStyle
+              // (native-stack stub maps to stack on web, which ignores contentStyle)
+              // flex: 1 gives each screen card a bounded height so ScrollView can scroll
+              ...(Platform.OS === 'web' && {
+                cardStyle: {
+                  flex: 1,
+                  backgroundColor: currentTheme.colors.darkBackground,
+                },
+              }),
             }}
           >
             <Stack.Screen
@@ -1352,6 +1383,26 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
                   backgroundColor: '#000000', // Pure black for video player
                 },
                 // Freeze when blurred to release resources safely
+                freezeOnBlur: true,
+              }}
+            />
+            <Stack.Screen
+              name="PlayerWeb"
+              component={DesktopPlayerScreen as any}
+              options={{
+                animation: 'fade',
+                animationDuration: 0,
+                presentation: 'card',
+                gestureEnabled: false,
+                contentStyle: {
+                  backgroundColor: 'transparent',
+                },
+                ...(Platform.OS === 'web' && {
+                  cardStyle: {
+                    flex: 1,
+                    backgroundColor: 'transparent',
+                  },
+                }),
                 freezeOnBlur: true,
               }}
             />

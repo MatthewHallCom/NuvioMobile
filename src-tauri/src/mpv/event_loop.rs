@@ -140,6 +140,23 @@ pub fn start_event_loop(mpv: Arc<MpvHandle>, app_handle: AppHandle) {
                     }
                 }
 
+                MPV_EVENT_LOG_MESSAGE => {
+                    if !event.data.is_null() {
+                        // mpv_event_log_message: { prefix, level, text }
+                        #[repr(C)]
+                        struct MpvLogMessage {
+                            prefix: *const i8,
+                            level: *const i8,
+                            text: *const i8,
+                        }
+                        let msg = unsafe { &*(event.data as *const MpvLogMessage) };
+                        let prefix = unsafe { CStr::from_ptr(msg.prefix).to_string_lossy() };
+                        let level = unsafe { CStr::from_ptr(msg.level).to_string_lossy() };
+                        let text = unsafe { CStr::from_ptr(msg.text).to_string_lossy() };
+                        log::info!("[mpv:{}] [{}] {}", prefix, level, text.trim_end());
+                    }
+                }
+
                 _ => {} // Ignore other events
             }
         }

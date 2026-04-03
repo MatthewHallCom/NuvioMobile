@@ -2,6 +2,13 @@
 
 # dependencies
 node_modules/
+
+# Prebuilt libmpv dylibs (downloaded via scripts/setup_mpv_libs.sh)
+src-tauri/libs/mpv/*.dylib
+src-tauri/libs/mpv/*.dll
+src-tauri/libs/mpv/*.so*
+src-tauri/libs/mpv/*.json
+!src-tauri/libs/mpv/libnuvio_mpv.dylib
 # Un-ignore specific react-native-video source files we patch
 !node_modules/react-native-video/android/src/main/java/com/brentvatne/common/api/SubtitleStyle.kt
 !node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/ExoPlayerView.kt

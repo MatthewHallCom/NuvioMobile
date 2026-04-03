@@ -72,23 +72,19 @@ impl MpvHandle {
         Some(value)
     }
 
-    /// Get a property as a double.
+    /// Get a property as a double via mpv_get_property with MPV_FORMAT_DOUBLE.
     pub fn get_property_double(&self, name: &str) -> Option<f64> {
         let name_c = CString::new(name).unwrap();
         let mut value: f64 = 0.0;
-        let ret = unsafe { (self.fns.get_property_double)(self.ctx, name_c.as_ptr(), &mut value) };
+        let ret = unsafe {
+            (self.fns.get_property)(
+                self.ctx,
+                name_c.as_ptr(),
+                MPV_FORMAT_DOUBLE,
+                &mut value as *mut f64 as *mut std::ffi::c_void,
+            )
+        };
         if ret < 0 { None } else { Some(value) }
-    }
-
-    /// Send a command string (e.g., "loadfile /path/to/video.mp4").
-    pub fn command_string(&self, cmd: &str) -> Result<(), String> {
-        let cmd_c = CString::new(cmd).unwrap();
-        let ret = unsafe { (self.fns.command_string)(self.ctx, cmd_c.as_ptr()) };
-        if ret < 0 {
-            Err(format!("mpv_command_string({}) failed: {}", cmd, ret))
-        } else {
-            Ok(())
-        }
     }
 
     /// Send a command with arguments array.
@@ -143,6 +139,14 @@ impl Drop for MpvHandle {
 /// Configure mpv with default options for Nuvio desktop playback.
 /// Mirrors the Android MPVView.kt config + soia's config.
 pub fn configure_mpv_defaults(mpv: &MpvHandle) -> Result<(), String> {
+    // NOTE: vo and gpu-api are NOT set here — soia_utils_create handles
+    // video output setup after mpv_initialize(). Setting vo before init
+    // causes mpv to initialize the VO before the Vulkan surface exists.
+
+    // MPV terminal output (errors and warnings only)
+    mpv.set_option("terminal", "yes")?;
+    mpv.set_option("msg-level", "all=warn")?;
+
     // Hardware acceleration
     mpv.set_option("hwdec", "auto")?;
     mpv.set_option("keep-open", "yes")?;

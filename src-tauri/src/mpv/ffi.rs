@@ -73,12 +73,11 @@ pub type MpvCreate = unsafe extern "C" fn() -> *mut mpv_handle;
 pub type MpvInitialize = unsafe extern "C" fn(ctx: *mut mpv_handle) -> c_int;
 pub type MpvTerminateDestroy = unsafe extern "C" fn(ctx: *mut mpv_handle);
 pub type MpvCommand = unsafe extern "C" fn(ctx: *mut mpv_handle, args: *mut *const c_char) -> c_int;
-pub type MpvCommandString = unsafe extern "C" fn(ctx: *mut mpv_handle, args: *const c_char) -> c_int;
 pub type MpvSetOptionString = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char, data: *const c_char) -> c_int;
 pub type MpvSetPropertyString = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char, data: *const c_char) -> c_int;
 pub type MpvGetPropertyString = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char) -> *mut c_char;
-pub type MpvGetPropertyDouble = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char, data: *mut c_double) -> c_int;
-pub type MpvGetPropertyFlag = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char, data: *mut c_int) -> c_int;
+// mpv_get_property(ctx, name, format, data) — generic property getter
+pub type MpvGetProperty = unsafe extern "C" fn(ctx: *mut mpv_handle, name: *const c_char, format: c_int, data: *mut c_void) -> c_int;
 pub type MpvObserveProperty = unsafe extern "C" fn(ctx: *mut mpv_handle, reply_userdata: u64, name: *const c_char, format: c_int) -> c_int;
 pub type MpvWaitEvent = unsafe extern "C" fn(ctx: *mut mpv_handle, timeout: c_double) -> *mut mpv_event;
 pub type MpvFree = unsafe extern "C" fn(data: *mut c_void);
@@ -91,11 +90,10 @@ pub struct MpvFunctions {
     pub initialize: MpvInitialize,
     pub terminate_destroy: MpvTerminateDestroy,
     pub command: MpvCommand,
-    pub command_string: MpvCommandString,
     pub set_option_string: MpvSetOptionString,
     pub set_property_string: MpvSetPropertyString,
     pub get_property_string: MpvGetPropertyString,
-    pub get_property_double: MpvGetPropertyDouble,
+    pub get_property: MpvGetProperty,
     pub observe_property: MpvObserveProperty,
     pub wait_event: MpvWaitEvent,
     pub free: MpvFree,
@@ -169,11 +167,10 @@ impl MpvFunctions {
             initialize: std::mem::transmute(load_fn!(b"mpv_initialize\0")),
             terminate_destroy: std::mem::transmute(load_fn!(b"mpv_terminate_destroy\0")),
             command: std::mem::transmute(load_fn!(b"mpv_command\0")),
-            command_string: std::mem::transmute(load_fn!(b"mpv_command_string\0")),
             set_option_string: std::mem::transmute(load_fn!(b"mpv_set_option_string\0")),
             set_property_string: std::mem::transmute(load_fn!(b"mpv_set_property_string\0")),
             get_property_string: std::mem::transmute(load_fn!(b"mpv_get_property_string\0")),
-            get_property_double: std::mem::transmute(load_fn!(b"mpv_get_property_double\0")),
+            get_property: std::mem::transmute(load_fn!(b"mpv_get_property\0")),
             observe_property: std::mem::transmute(load_fn!(b"mpv_observe_property\0")),
             wait_event: std::mem::transmute(load_fn!(b"mpv_wait_event\0")),
             free: std::mem::transmute(load_fn!(b"mpv_free\0")),
