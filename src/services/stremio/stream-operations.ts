@@ -248,12 +248,33 @@ function logUnmatchedStreamAddons(
 }
 
 /**
- * Detect whether a series ID actually contains episode info (season:episode suffix).
- * If type is "series" but the ID has no episode info, the content was likely
- * miscategorized by a catalog addon and is actually a movie.
+ * Strip bogus :0:0 suffix from IDs that were constructed as series episodes
+ * but are actually movies (miscategorized by a catalog addon).
  */
-function inferCorrectedType(type: string, id: string): string {
-  if (type !== 'series') return type;
+function stripBogusEpisodeSuffix(id: string): string {
+  const parts = id.split(':');
+  let prefixLen: number;
+
+  if (parts[0] === 'kitsu' || parts[0] === 'tmdb') {
+    prefixLen = 2; // namespace:baseId
+  } else {
+    prefixLen = 1; // tt12345 or plain id
+  }
+
+  const tail = parts.slice(prefixLen);
+  if (
+    tail.length >= 2 &&
+    tail.slice(0, 2).every(p => /^\d+$/.test(p)) &&
+    tail[0] === '0' && tail[1] === '0'
+  ) {
+    return parts.slice(0, prefixLen).join(':');
+  }
+
+  return id;
+}
+
+function inferCorrectedType(type: string, id: string): { type: string; id: string } {
+  if (type !== 'series') return { type, id };
 
   // Strip known namespace prefixes to get to the base ID + optional episode parts
   const parts = id.split(':');
@@ -267,19 +288,22 @@ function inferCorrectedType(type: string, id: string): string {
     numericTail = parts.slice(1);
   }
 
-  // A real series episode needs at least season + episode as numeric parts
+  // A real series episode needs at least season + episode as numeric parts.
+  // S00E00 (0:0) is never valid — it means the ID was built from a miscategorized movie.
   const hasEpisodeInfo =
     numericTail.length >= 2 &&
-    numericTail.slice(0, 2).every(p => /^\d+$/.test(p));
+    numericTail.slice(0, 2).every(p => /^\d+$/.test(p)) &&
+    !(numericTail[0] === '0' && numericTail[1] === '0');
 
   if (!hasEpisodeInfo) {
+    const correctedId = stripBogusEpisodeSuffix(id);
     logger.log(
-      `🔄 [getStreams] Type is 'series' but id '${id}' has no episode info — correcting to 'movie'`
+      `🔄 [getStreams] Type is 'series' but id '${id}' has no episode info — correcting to 'movie'${correctedId !== id ? ` (id → '${correctedId}')` : ''}`
     );
-    return 'movie';
+    return { type: 'movie', id: correctedId };
   }
 
-  return type;
+  return { type, id };
 }
 
 export async function getStreams(
@@ -291,20 +315,22 @@ export async function getStreams(
   await ctx.ensureInitialized();
 
   const addons = ctx.getInstalledAddons();
-  const correctedType = inferCorrectedType(type, id);
-  await runLocalScrapers(correctedType, id, callback);
+  const corrected = inferCorrectedType(type, id);
+  const correctedType = corrected.type;
+  const correctedId = corrected.id;
+  await runLocalScrapers(correctedType, correctedId, callback);
 
   let effectiveType = correctedType;
-  let streamAddons = pickStreamAddons(ctx, correctedType, id);
+  let streamAddons = pickStreamAddons(ctx, correctedType, correctedId);
 
   logger.log(
-    `🧭 [getStreams] Resolving stream addons for type='${correctedType}' id='${id}' (matched=${streamAddons.length}${correctedType !== type ? `, corrected from '${type}'` : ''})`
+    `🧭 [getStreams] Resolving stream addons for type='${correctedType}' id='${correctedId}' (matched=${streamAddons.length}${correctedType !== type ? `, corrected from '${type}' id='${id}'` : ''})`
   );
 
   if (streamAddons.length === 0) {
     const fallbackTypes = ['series', 'movie', 'tv', 'channel'].filter(candidate => candidate !== correctedType);
     for (const fallbackType of fallbackTypes) {
-      const fallbackAddons = pickStreamAddons(ctx, fallbackType, id);
+      const fallbackAddons = pickStreamAddons(ctx, fallbackType, correctedId);
       if (fallbackAddons.length === 0) {
         continue;
       }
@@ -312,7 +338,7 @@ export async function getStreams(
       effectiveType = fallbackType;
       streamAddons = fallbackAddons;
       logger.log(
-        `🔁 [getStreams] No stream addons for type '${correctedType}', falling back to '${effectiveType}' for id '${id}'`
+        `🔁 [getStreams] No stream addons for type '${correctedType}', falling back to '${effectiveType}' for id '${correctedId}'`
       );
       break;
     }
@@ -320,12 +346,12 @@ export async function getStreams(
 
   if (effectiveType !== correctedType) {
     logger.log(
-      `🧭 [getStreams] Using effectiveType='${effectiveType}' (requested='${type}'${correctedType !== type ? `, corrected='${correctedType}'` : ''}) for id='${id}'`
+      `🧭 [getStreams] Using effectiveType='${effectiveType}' (requested='${type}'${correctedType !== type ? `, corrected='${correctedType}'` : ''}) for id='${correctedId}'`
     );
   }
 
   if (streamAddons.length === 0) {
-    logUnmatchedStreamAddons(ctx, addons, effectiveType, type, id);
+    logUnmatchedStreamAddons(ctx, addons, effectiveType, type, correctedId);
     return;
   }
 
@@ -339,7 +365,7 @@ export async function getStreams(
         }
 
         const { baseUrl, queryParams } = ctx.getAddonBaseURL(addon.url);
-        const encodedId = encodeURIComponent(id);
+        const encodedId = encodeURIComponent(correctedId);
         const url = queryParams
           ? `${baseUrl}/stream/${effectiveType}/${encodedId}.json?${queryParams}`
           : `${baseUrl}/stream/${effectiveType}/${encodedId}.json`;

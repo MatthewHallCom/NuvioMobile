@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { Alert, AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   completeHandler,
@@ -295,8 +296,90 @@ function normalizeRelativePath(path: string): string {
   return path.replace(/\\/g, '/').replace(/^\/+/, '');
 }
 
+const ANDROID_DEFAULT_DIR = '/storage/emulated/0/Movies/Nuvio';
+
+let _customStoragePath = '';
+
+function setCustomStoragePath(path: string) {
+  _customStoragePath = path;
+}
+
 function getDocumentsDirPath(): string {
+  if (Platform.OS === 'android') {
+    if (_customStoragePath) {
+      return `${_customStoragePath}/Movies/Nuvio`;
+    }
+    return ANDROID_DEFAULT_DIR;
+  }
   return stripFileScheme(String((directories as any).documents || (FileSystem as any).documentDirectory || ''));
+}
+
+async function hasExternalStoragePermission(): Promise<boolean> {
+  try {
+    return await NativeModules.StorageModule.isExternalStorageManager();
+  } catch {
+    return false;
+  }
+}
+
+async function ensureAndroidStoragePermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+
+  const apiLevel = typeof Platform.Version === 'number'
+    ? Platform.Version
+    : parseInt(String(Platform.Version), 10);
+
+  // Android 10 and below: request WRITE_EXTERNAL_STORAGE at runtime
+  if (apiLevel < 30) {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+      {
+        title: 'Storage Permission',
+        message: 'Nuvio needs storage access to download movies to your device.',
+        buttonPositive: 'Allow',
+      }
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  }
+
+  // Android 11+: check if we already have access
+  if (await hasExternalStoragePermission()) return true;
+
+  // Request MANAGE_EXTERNAL_STORAGE via the system "All files access" screen
+  const userWantsToGrant = await new Promise<boolean>(resolve => {
+    Alert.alert(
+      'Storage Permission Required',
+      'Nuvio needs "All files access" to save downloads to your Movies folder. You\'ll be taken to the permission screen.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Grant Access', onPress: () => resolve(true) },
+      ]
+    );
+  });
+
+  if (!userWantsToGrant) return false;
+
+  try {
+    await IntentLauncher.startActivityAsync(
+      'android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION',
+      { data: 'package:com.nuvio.app' }
+    );
+  } catch {
+    // Fallback for devices that don't support the app-specific intent
+    try {
+      await IntentLauncher.startActivityAsync(
+        'android.settings.MANAGE_ALL_FILES_ACCESS_PERMISSION'
+      );
+    } catch {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
+        { data: 'package:com.nuvio.app' }
+      );
+    }
+  }
+
+  // After returning from settings, check if permission was granted
+  return hasExternalStoragePermission();
 }
 
 function getRelativeDownloadPath(pathOrUri?: string | null): string | undefined {
@@ -351,6 +434,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => { isWiFiRef.current = isWiFi; }, [isWiFi]);
   useEffect(() => { isConnectedRef.current = isConnected; }, [isConnected]);
   useEffect(() => { wifiOnlyRef.current = settings.wifiOnlyDownloads; }, [settings.wifiOnlyDownloads]);
+  useEffect(() => { setCustomStoragePath(settings.downloadStoragePath || ''); }, [settings.downloadStoragePath]);
   useEffect(() => {
     downloadsRef.current = downloads;
   }, [downloads]);
@@ -545,7 +629,11 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [downloads]);
 
   const updateDownload = useCallback((id: string, updater: (d: DownloadItem) => DownloadItem) => {
-    setDownloads(prev => prev.map(d => (d.id === id ? updater(d) : d)));
+    setDownloads(prev => {
+      const next = prev.map(d => (d.id === id ? updater(d) : d));
+      downloadsRef.current = next;
+      return next;
+    });
   }, []);
 
   const attachDownloadTask = useCallback((task: any) => {
@@ -882,12 +970,14 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     if (!task) {
-      updateDownload(id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
+      // Native task lost (e.g. app restart) — re-create from saved item data
+      console.log(`[DownloadsContext] No native task for ${id}, re-creating download`);
+      startQueuedDownload(item);
       return;
     }
 
     processQueueRef.current?.();
-  }, [attachDownloadTask, updateDownload]);
+  }, [attachDownloadTask, startQueuedDownload, updateDownload]);
 
   const startDownload = useCallback(async (input: StartDownloadInput) => {
     console.log(`[DownloadsContext] startDownload called:`, { title: input.title, type: input.type, url: input.url?.substring(0, 80) });
@@ -916,6 +1006,14 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!userConfirmed) return;
     }
 
+    // Ensure we have storage permission on Android before proceeding
+    if (Platform.OS === 'android') {
+      const hasPermission = await ensureAndroidStoragePermission();
+      if (!hasPermission) {
+        throw new Error('Storage permission is required to download files. Please grant "All files access" in Settings.');
+      }
+    }
+
     const contentId = input.id;
     // Create unique ID per URL - allows same episode/movie from different sources
     const urlHash = hashString(input.url);
@@ -927,12 +1025,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Check if this exact URL is already being downloaded
     const existing = downloadsRef.current.find(d => d.sourceUrl === input.url);
     if (existing) {
-      if (existing.status === 'completed') {
-        return; // Already completed, do nothing
-      } else if (existing.status === 'downloading') {
-        return; // Already downloading, do nothing
+      if (existing.status === 'completed' || existing.status === 'downloading' || existing.status === 'queued') {
+        return;
       } else if (existing.status === 'paused' || existing.status === 'error') {
-        // Resume the paused or errored download instead of starting new one
         await resumeDownload(existing.id);
         return;
       }
@@ -947,9 +1042,13 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const downloadsDirPath = `${documentsDir}/downloads`;
     let destinationPath = `${downloadsDirPath}/${fileName}`;
 
-    // If the resolved name already exists, make it unique.
+    // Ensure the downloads directory exists.
     try {
       await FileSystem.makeDirectoryAsync(toFileUri(downloadsDirPath), { intermediates: true }).catch(() => { });
+    } catch { }
+
+    // If the resolved name already exists, make it unique.
+    try {
       const info = await FileSystem.getInfoAsync(toFileUri(destinationPath));
       if (info.exists) {
         fileName = `${uniqueId}_${fileName}`;
@@ -1000,7 +1099,11 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       resumeData: undefined,
     };
 
-    setDownloads(prev => [newItem, ...prev]);
+    setDownloads(prev => {
+      const next = [newItem, ...prev];
+      downloadsRef.current = next;
+      return next;
+    });
 
     // Fire-and-forget image caching
     const downloadId = compoundId;

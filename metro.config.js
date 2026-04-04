@@ -30,4 +30,22 @@ config.resolver = {
   resolverMainFields: ['react-native', 'browser', 'main'],
 };
 
+// Mac Catalyst: stub out native modules excluded from the Catalyst pod install
+if (process.env.CATALYST === '1') {
+  const path = require('path');
+  const skiaStub = path.resolve(__dirname, 'src/stubs/react-native-skia');
+  const origResolveRequest = config.resolver.resolveRequest;
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    // Redirect all @shopify/react-native-skia imports to stub
+    if (moduleName.startsWith('@shopify/react-native-skia')) {
+      return {
+        filePath: path.resolve(skiaStub, 'index.ts'),
+        type: 'sourceFile',
+      };
+    }
+    // Fall through to default resolution
+    return context.resolveRequest(context, moduleName, platform);
+  };
+}
+
 module.exports = config;

@@ -442,7 +442,7 @@ export const useStreamsScreen = () => {
         });
       }
 
-      const playerRoute = Platform.OS === 'ios' ? 'PlayerIOS' : Platform.OS === 'web' ? 'PlayerWeb' : 'PlayerAndroid';
+      const playerRoute = Platform.OS === 'ios' ? 'PlayerIOS' : 'PlayerAndroid';
 
       navigation.navigate(playerRoute as any, {
         uri: stream.url as any,

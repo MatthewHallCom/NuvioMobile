@@ -10,9 +10,6 @@
     "build": "export NODE_ENV=production && export SENTRY_DISABLE_AUTO_UPLOAD=true && cd android && ./gradlew assembleRelease",
     "dev:web": "vite --config vite.config.ts",
     "build:web": "vite build --config vite.config.ts",
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
     "postinstall": "patch-package"
   },
   "dependencies": {
@@ -38,7 +35,6 @@
     "@sentry/react-native": "^8.4.0",
     "@shopify/flash-list": "^2.3.0",
     "@shopify/react-native-skia": "^2.5.1",
-    "@tauri-apps/plugin-store": "^2.4.2",
     "@types/lodash": "^4.17.24",
     "@types/react-native-video": "^5.0.21",
     "axios": "^1.13.6",
@@ -109,7 +105,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
-    "@tauri-apps/cli": "^2.10.1",
     "@types/crypto-js": "^4.2.2",
     "@types/react": "~18.3.12",
     "@types/react-native": "^0.72.8",

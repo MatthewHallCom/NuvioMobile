@@ -25,7 +25,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { mmkvStorage } from '../services/mmkvStorage';
-import { ShapeAnimation } from '../components/onboarding/ShapeAnimation';
+import { TurboModuleRegistry } from 'react-native';
+const hasSkia = !!TurboModuleRegistry.get('RNSkiaModule');
+const ShapeAnimation = hasSkia
+  ? require('../components/onboarding/ShapeAnimation').ShapeAnimation
+  : () => null;
 
 const { width, height } = Dimensions.get('window');
 
@@ -300,8 +304,8 @@ const OnboardingScreen = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" translucent />
 
       <View style={styles.fullScreenContainer}>
-        {/* Shape Animation Background - iOS only */}
-        {Platform.OS === 'ios' && <ShapeAnimation scrollX={scrollX} />}
+        {/* Shape Animation Background - iOS only (skipped on Mac Catalyst where Skia is unavailable) */}
+        {hasSkia && <ShapeAnimation scrollX={scrollX} />}
 
         {/* Header */}
         <Animated.View

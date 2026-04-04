@@ -35,6 +35,7 @@ import { VideoPlayerService } from '../services/videoPlayerService';
 import type { DownloadItem } from '../contexts/DownloadsContext';
 import * as FileSystem from 'expo-file-system/legacy';
 import { groupDownloadsByShow, getMovieDownloads, getOfflineImageUri } from '../services/offlineMetadataService';
+import { tmdbService } from '../services/tmdbService';
 import type { GroupedShow } from '../services/offlineMetadataService';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useToast } from '../contexts/ToastContext';
@@ -101,6 +102,60 @@ const EmptyDownloadsState: React.FC<{ navigation: NavigationProp<RootStackParamL
   );
 };
 
+// Series poster card — fetches poster from TMDB if not cached
+const SeriesPosterCard: React.FC<{
+  group: GroupedShow;
+  onPress: () => void;
+  borderRadius: number;
+  theme: any;
+}> = React.memo(({ group, onPress, borderRadius, theme }) => {
+  const [poster, setPoster] = useState<string>(getOfflineImageUri(group, 'poster'));
+
+  useEffect(() => {
+    if (poster && !poster.includes('placeholder')) return;
+    // Try to get poster from the first episode's data
+    const firstEp = Object.values(group.seasons).flat()[0];
+    const imdbId = firstEp?.imdbId;
+    const tmdbId = firstEp?.tmdbId;
+    if (!imdbId && !tmdbId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let resolvedTmdbId = tmdbId;
+        if (!resolvedTmdbId && imdbId) {
+          resolvedTmdbId = await tmdbService.findTMDBIdByIMDB(imdbId) ?? undefined;
+        }
+        if (!resolvedTmdbId || cancelled) return;
+        const details = await tmdbService.getTVShowDetails(resolvedTmdbId);
+        if (!cancelled && details?.poster_path) {
+          setPoster(tmdbService.getImageUrl(details.poster_path) || poster);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [group.contentId]);
+
+  return (
+    <TouchableOpacity
+      style={styles.movieCard}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <FastImage
+        source={{ uri: poster }}
+        style={[styles.moviePoster, { borderRadius }]}
+        resizeMode={FastImage.resizeMode.cover}
+      />
+      <Text
+        style={[styles.movieTitle, { color: theme.colors.text }]}
+        numberOfLines={2}
+      >
+        {group.title}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
 // Download item component
 const DownloadItemComponent: React.FC<{
   item: DownloadItem;
@@ -115,13 +170,26 @@ const DownloadItemComponent: React.FC<{
   const [posterUrl, setPosterUrl] = useState<string | null>(item.posterUrl || null);
   const borderRadius = settings.posterBorderRadius ?? 12;
 
-  // Try to fetch poster if not available
+  // Fetch poster from TMDB if not available
   useEffect(() => {
-    if (!posterUrl && (item.imdbId || item.tmdbId)) {
-      // This could be enhanced to fetch poster from TMDB API if needed
-      // For now, we'll use the existing posterUrl or fallback to placeholder
-      setPosterUrl(item.posterUrl || null);
-    }
+    if (posterUrl || (!item.imdbId && !item.tmdbId)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let tmdbId = item.tmdbId;
+        if (!tmdbId && item.imdbId) {
+          tmdbId = await tmdbService.findTMDBIdByIMDB(item.imdbId) ?? undefined;
+        }
+        if (!tmdbId || cancelled) return;
+        const details = item.type === 'series'
+          ? await tmdbService.getTVShowDetails(tmdbId)
+          : await tmdbService.getMovieDetails(String(tmdbId));
+        if (!cancelled && details?.poster_path) {
+          setPosterUrl(tmdbService.getImageUrl(details.poster_path));
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
   }, [item.imdbId, item.tmdbId, item.posterUrl, posterUrl]);
 
   const handleLongPress = useCallback(() => {
@@ -797,24 +865,13 @@ const DownloadsScreen: React.FC = () => {
               <Text style={[styles.sectionHeader, { color: currentTheme.colors.text }]}>Series</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.posterRow}>
                 {Object.values(seriesGroups).map(group => (
-                  <TouchableOpacity
+                  <SeriesPosterCard
                     key={group.contentId}
-                    style={styles.movieCard}
+                    group={group}
                     onPress={() => navigation.navigate('OfflineShowDetail', { contentId: group.contentId })}
-                    activeOpacity={0.8}
-                  >
-                    <FastImage
-                      source={{ uri: getOfflineImageUri(group, 'poster') }}
-                      style={[styles.moviePoster, { borderRadius: settings.posterBorderRadius ?? 12 }]}
-                      resizeMode={FastImage.resizeMode.cover}
-                    />
-                    <Text
-                      style={[styles.movieTitle, { color: currentTheme.colors.text }]}
-                      numberOfLines={2}
-                    >
-                      {group.title}
-                    </Text>
-                  </TouchableOpacity>
+                    borderRadius={settings.posterBorderRadius ?? 12}
+                    theme={currentTheme}
+                  />
                 ))}
               </ScrollView>
             </View>

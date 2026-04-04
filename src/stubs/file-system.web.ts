@@ -1,8 +1,7 @@
-// expo-file-system web stub — skeleton for Phase 1.
-// Phase 4 replaces this with @tauri-apps/plugin-fs for real file access.
+// expo-file-system web stub — skeleton for web builds.
 
-export const documentDirectory = 'file:///tauri-docs/';
-export const cacheDirectory = 'file:///tauri-cache/';
+export const documentDirectory = 'file:///documents/';
+export const cacheDirectory = 'file:///cache/';
 export const bundleDirectory = null;
 
 export const EncodingType = {

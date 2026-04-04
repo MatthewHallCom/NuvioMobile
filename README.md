@@ -56,42 +56,10 @@ Nuvio is not affiliated with any third-party extensions, catalogs, sources, or c
 
 For comprehensive legal information, including our full disclaimer, third-party extension policy, and DMCA/Copyright information, please visit our **[Legal & Disclaimer Page](https://nuvioapp.space/legal)**.
 
-## Desktop (macOS/Windows/Linux)
-
-The desktop version runs via [Tauri](https://tauri.app/) with video playback powered by [MPV](https://mpv.io/).
-
-### Prerequisites
-
-- [Rust toolchain](https://rustup.rs)
-- Tauri v2 CLI: `cargo install tauri-cli`
-
-### Setup
-
-After `npm install`, download the prebuilt libmpv libraries:
-
-```bash
-./scripts/setup_mpv_libs.sh
-```
-
-This downloads ~27MB of libmpv + dependencies (FFmpeg, MoltenVK, etc.) into `src-tauri/libs/mpv/`. These files are gitignored and must be downloaded on each machine.
-
-### Development
-
-```bash
-cargo tauri dev
-```
-
-### Build
-
-```bash
-cargo tauri build
-```
-
 ## Built With
 
 - React Native
 - Expo
-- Tauri (desktop)
 - TypeScript
 
 ## Star History

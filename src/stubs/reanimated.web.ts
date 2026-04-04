@@ -1,5 +1,5 @@
 // Web stub for react-native-reanimated
-// Provides no-op/passthrough implementations for browser/Tauri builds.
+// Provides no-op/passthrough implementations for browser builds.
 
 import { View, Text, Image, ScrollView, FlatList } from 'react-native';
 import { useRef, useCallback } from 'react';

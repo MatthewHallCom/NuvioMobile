@@ -137,7 +137,7 @@ export default defineConfig(({ mode }) => {
     port: 1420,
     strictPort: true,
     watch: {
-      ignored: ['**/src-tauri/**', '**/ios/**', '**/android/**'],
+      ignored: ['**/ios/**', '**/android/**'],
     },
   },
 

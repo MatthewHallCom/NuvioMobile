@@ -64,6 +64,7 @@ export interface AppSettings {
   // Downloads
   enableDownloads: boolean; // Show download buttons on streams and Downloads section in Library
   wifiOnlyDownloads: boolean; // Only download on WiFi (default true)
+  downloadStoragePath: string; // Custom download storage path (empty = default internal storage)
   // Theme settings
   themeId: string;
   customThemes: CustomThemeDef[];
@@ -157,6 +158,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   // Downloads
   enableDownloads: true,
   wifiOnlyDownloads: true,
+  downloadStoragePath: '', // Empty = default internal storage
   useExternalPlayerForDownloads: false,
   // Theme defaults
   themeId: 'default',

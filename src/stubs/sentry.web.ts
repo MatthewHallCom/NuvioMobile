@@ -1,4 +1,4 @@
-// Sentry stub for web/Tauri builds.
+// Sentry stub for web builds.
 // App.tsx wraps the entire app with Sentry.wrap() and calls Sentry.init().
 // This no-op stub prevents crashes without adding real error tracking.
 // Replace with @sentry/browser for production desktop error tracking.

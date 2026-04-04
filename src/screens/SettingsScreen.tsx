@@ -14,6 +14,7 @@ import {
   FlatList,
   Image,
   Alert,
+  NativeModules,
 } from 'react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useTranslation } from 'react-i18next';
@@ -190,6 +191,43 @@ const SettingsScreen: React.FC = () => {
       ]
     );
   }, [downloads, removeDownload]);
+
+  const storageLocationLabel = useMemo(() => {
+    if (Platform.OS !== 'android') return null;
+    return settings.downloadStoragePath ? 'SD Card' : 'Internal Storage';
+  }, [settings.downloadStoragePath]);
+
+  const handleChangeStorageLocation = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    try {
+      const volumes: Array<{ description: string; path: string | null; isPrimary: boolean; isRemovable: boolean }> =
+        await NativeModules.StorageModule.getStorageVolumes();
+
+      const validVolumes = volumes.filter(v => v.path);
+      if (validVolumes.length <= 1) {
+        Alert.alert('No SD Card Found', 'No removable SD card was detected. Insert an SD card and try again.');
+        return;
+      }
+
+      const buttons = validVolumes.map(v => ({
+        text: v.isPrimary ? 'Internal Storage' : (v.description || 'SD Card'),
+        onPress: () => {
+          const newPath = v.isPrimary ? '' : (v.path || '');
+          updateSetting('downloadStoragePath', newPath);
+        },
+      }));
+      buttons.push({ text: 'Cancel', onPress: () => {} });
+
+      Alert.alert(
+        'Download Location',
+        'Choose where to save downloaded videos. Existing downloads will remain in their current location.',
+        buttons,
+      );
+    } catch (e) {
+      Alert.alert('Error', 'Could not detect storage volumes.');
+    }
+  }, [updateSetting]);
+
   const languageSheetRef = useRef<BottomSheetModal>(null);
   const { onChange, onDismiss } = useBottomSheetBackHandler();
   const insets = useSafeAreaInsets();
@@ -599,6 +637,16 @@ const SettingsScreen: React.FC = () => {
               )}
               isTablet={isTablet}
             />
+            {Platform.OS === 'android' && (
+              <SettingItem
+                title="Download Location"
+                description={storageLocationLabel || 'Internal Storage'}
+                icon="folder"
+                onPress={handleChangeStorageLocation}
+                renderControl={() => <ChevronRight />}
+                isTablet={isTablet}
+              />
+            )}
             <SettingItem
               title="Storage Used"
               description={storageUsed}
@@ -934,6 +982,15 @@ const SettingsScreen: React.FC = () => {
                   />
                 )}
               />
+              {Platform.OS === 'android' && (
+                <SettingItem
+                  title="Download Location"
+                  description={storageLocationLabel || 'Internal Storage'}
+                  icon="folder"
+                  onPress={handleChangeStorageLocation}
+                  renderControl={() => <ChevronRight />}
+                />
+              )}
               <SettingItem
                 title="Storage Used"
                 description={storageUsed}

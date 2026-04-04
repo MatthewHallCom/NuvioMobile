@@ -64,8 +64,8 @@ target 'Nuvio' do
 
   # KSPlayer dependencies
   # Use the local checkout so we can patch subtitle rendering (and other behaviors) without forking.
-  pod 'KSPlayer', :path => '../KSPlayer'
-  pod 'DisplayCriteria', :path => '../KSPlayer', :modular_headers => true
+  pod 'KSPlayer', :path => '../../KSPlayer'
+  pod 'DisplayCriteria', :path => '../../KSPlayer', :modular_headers => true
   pod 'FFmpegKit', :git => 'https://github.com/kingslay/FFmpegKit.git', :branch => 'main', :modular_headers => true
   pod 'Libass', :git => 'https://github.com/kingslay/FFmpegKit.git', :branch => 'main'
 
@@ -77,6 +77,18 @@ target 'Nuvio' do
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FMT_USE_CONSTEVAL=0'
         end
+      end
+
+      # Google Cast SDK does not support Mac Catalyst — skip compilation
+      if is_catalyst && (target.name.include?('react-native-google-cast') || target.name.include?('GoogleCast'))
+        target.build_configurations.each do |config|
+          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] = '*'
+          config.build_settings['OTHER_LDFLAGS'] = '$(inherited)'
+          config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited)'
+        end
+        # Remove all source build phases
+        target.source_build_phase.files.clear
+        target.resources_build_phase.files.clear if target.resources_build_phase
       end
     end
 

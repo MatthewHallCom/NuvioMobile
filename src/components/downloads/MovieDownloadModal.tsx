@@ -168,29 +168,33 @@ const MovieDownloadModal: React.FC<MovieDownloadModalProps> = ({
 
     const qualityMatch = (selectedStream.title || '').match(/(\d{3,4})p/);
 
-    await startDownload({
-      id: contentId,
-      type: 'movie',
-      title: contentTitle,
-      year,
-      providerName: selectedStream.name || selectedStream.addonName || 'Provider',
-      quality: qualityMatch ? qualityMatch[1] : undefined,
-      posterUrl: posterUrl || null,
-      url: selectedStream.url!,
-      headers: (selectedStream.headers as any) || undefined,
-      imdbId: imdbId || undefined,
-      description,
-      genres,
-      runtime,
-      rating,
-      bannerUrl,
-      logoUrl,
-    });
+    try {
+      await startDownload({
+        id: contentId,
+        type: 'movie',
+        title: contentTitle,
+        year,
+        providerName: selectedStream.name || selectedStream.addonName || 'Provider',
+        quality: qualityMatch ? qualityMatch[1] : undefined,
+        posterUrl: posterUrl || null,
+        url: selectedStream.url!,
+        headers: (selectedStream.headers as any) || undefined,
+        imdbId: imdbId || undefined,
+        description,
+        genres,
+        runtime,
+        rating,
+        bannerUrl,
+        logoUrl,
+      });
 
-    setPhase('done');
-    setTimeout(() => {
-      handleClose();
-    }, 1500);
+      setPhase('done');
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } catch (err: any) {
+      Alert.alert('Download Failed', err?.message || 'Could not start download.');
+    }
   }, [
     selectedStream,
     settings,

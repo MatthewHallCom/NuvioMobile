@@ -44,7 +44,6 @@ import SyncSettingsScreen from '../screens/SyncSettingsScreen';
 import MetadataScreen from '../screens/MetadataScreen';
 import KSPlayerCore from '../components/player/KSPlayerCore';
 import AndroidVideoPlayer from '../components/player/AndroidVideoPlayer';
-import DesktopPlayerScreen from '../screens/DesktopPlayerScreen';
 import CatalogScreen from '../screens/CatalogScreen';
 import AddonsScreen from '../screens/AddonsScreen';
 import SearchScreen from '../screens/SearchScreen';
@@ -160,27 +159,6 @@ export type RootStackParamList = {
     groupedEpisodes?: { [seasonNumber: number]: any[] };
   };
   PlayerAndroid: {
-    uri: string;
-    title?: string;
-    season?: number;
-    episode?: number;
-    episodeTitle?: string;
-    quality?: string;
-    year?: number;
-    streamProvider?: string;
-    streamName?: string;
-    headers?: { [key: string]: string };
-    id?: string;
-    type?: string;
-    episodeId?: string;
-    imdbId?: string;
-    availableStreams?: { [providerId: string]: { streams: any[]; addonName: string } };
-    backdrop?: string;
-    videoType?: string;
-    releaseDate?: string;
-    groupedEpisodes?: { [seasonNumber: number]: any[] };
-  };
-  PlayerWeb: {
     uri: string;
     title?: string;
     season?: number;
@@ -1177,6 +1155,10 @@ const MainTabs = () => {
   );
 };
 
+// Mac Catalyst reports Platform.OS === 'ios' but needs card presentation instead of modals.
+// Detect by checking if we're on iOS but with a desktop-sized window (no iPad is > 1400 logical pts wide).
+const isMacCatalyst = Platform.OS === 'ios' && Dimensions.get('screen').width > 1400;
+
 // Create custom fade animation interpolator for MetadataScreen
 const customFadeInterpolator = ({ current, layouts }: any) => {
   return {
@@ -1334,11 +1316,11 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
               component={StreamsScreen as any}
               options={{
                 headerShown: false,
-                animation: Platform.OS === 'ios' ? 'slide_from_bottom' : 'fade',
+                animation: Platform.OS === 'ios' && !isMacCatalyst ? 'slide_from_bottom' : 'fade',
                 animationDuration: Platform.OS === 'android' ? 200 : 300,
                 gestureEnabled: true,
-                gestureDirection: Platform.OS === 'ios' ? 'vertical' : 'horizontal',
-                ...(Platform.OS === 'ios' && { presentation: 'modal' }),
+                gestureDirection: Platform.OS === 'ios' && !isMacCatalyst ? 'vertical' : 'horizontal',
+                ...(Platform.OS === 'ios' && !isMacCatalyst && { presentation: 'modal' }),
                 contentStyle: {
                   backgroundColor: currentTheme.colors.darkBackground,
                 },
@@ -1352,7 +1334,7 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
               options={{
                 animation: 'default',
                 animationDuration: 0,
-                // fullScreenModal required for proper video rendering on iOS
+                // fullScreenModal required for proper video rendering — covers tab bar and titlebar
                 presentation: 'fullScreenModal',
                 // Disable gestures during video playback
                 gestureEnabled: false,
@@ -1383,26 +1365,6 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
                   backgroundColor: '#000000', // Pure black for video player
                 },
                 // Freeze when blurred to release resources safely
-                freezeOnBlur: true,
-              }}
-            />
-            <Stack.Screen
-              name="PlayerWeb"
-              component={DesktopPlayerScreen as any}
-              options={{
-                animation: 'fade',
-                animationDuration: 0,
-                presentation: 'card',
-                gestureEnabled: false,
-                contentStyle: {
-                  backgroundColor: 'transparent',
-                },
-                ...(Platform.OS === 'web' && {
-                  cardStyle: {
-                    flex: 1,
-                    backgroundColor: 'transparent',
-                  },
-                }),
                 freezeOnBlur: true,
               }}
             />
@@ -1518,7 +1480,7 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
               options={{
                 animation: Platform.OS === 'android' ? 'fade_from_bottom' : 'fade',
                 animationDuration: Platform.OS === 'android' ? 200 : 200,
-                ...(Platform.OS === 'ios' && { presentation: 'modal' }),
+                ...(Platform.OS === 'ios' && !isMacCatalyst && { presentation: 'modal' }),
                 gestureEnabled: true,
                 gestureDirection: 'horizontal',
                 headerShown: false,
@@ -1766,7 +1728,7 @@ const InnerNavigator = ({ initialRouteName }: { initialRouteName?: keyof RootSta
               options={{
                 animation: Platform.OS === 'android' ? 'fade' : 'slide_from_right',
                 animationDuration: Platform.OS === 'android' ? 200 : 300,
-                presentation: Platform.OS === 'ios' ? 'fullScreenModal' : 'modal',
+                presentation: isMacCatalyst ? 'card' : (Platform.OS === 'ios' ? 'fullScreenModal' : 'modal'),
                 gestureEnabled: true,
                 gestureDirection: Platform.OS === 'ios' ? 'horizontal' : 'vertical',
                 headerShown: false,
