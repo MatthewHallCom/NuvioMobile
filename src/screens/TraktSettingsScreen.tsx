@@ -36,7 +36,7 @@ const ANDROID_STATUSBAR_HEIGHT = StatusBar.currentHeight || 0;
 const TRAKT_CLIENT_ID = process.env.EXPO_PUBLIC_TRAKT_CLIENT_ID as string;
 
 if (!TRAKT_CLIENT_ID) {
-  throw new Error('Missing EXPO_PUBLIC_TRAKT_CLIENT_ID environment variable');
+  console.warn('Missing EXPO_PUBLIC_TRAKT_CLIENT_ID environment variable — Trakt integration disabled');
 }
 
 const discovery = {
@@ -236,7 +236,25 @@ const TraktSettingsScreen: React.FC = () => {
       openAlert('Conflict', 'You cannot connect to Trakt while Simkl is connected. Please disconnect Simkl first.');
       return;
     }
-    promptAsync(); // Trigger the authentication flow
+    if (Platform.OS === 'web') {
+      // On web/desktop, promptAsync triggers popup blockers because it does
+      // async PKCE work before calling window.open, losing the user gesture.
+      // Open the auth URL synchronously using the pre-built request URL,
+      // or construct it manually if the request isn't ready yet.
+      const url = request?.url
+        ?? `${discovery.authorizationEndpoint}?client_id=${TRAKT_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+      // Create a temporary anchor and click it to open in system browser.
+      // This bypasses webview popup blockers that block window.open('_blank').
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      promptAsync();
+    }
   };
 
   const handleSignOut = async () => {

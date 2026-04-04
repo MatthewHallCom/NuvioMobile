@@ -4,24 +4,37 @@ require File.join(File.dirname(`node --print "require.resolve('react-native/pack
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
+is_catalyst = ENV['CATALYST'] == '1'
+
 def ccache_enabled?(podfile_properties)
   # Environment variable takes precedence
   return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
-  
+
   # Fall back to Podfile properties
   podfile_properties['apple.ccacheEnabled'] == 'true'
 end
 
 ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
-ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
-ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+
+# Catalyst requires building RN from source (prebuilt xcframeworks lack maccatalyst slices)
+if is_catalyst
+  ENV['RCT_USE_RN_DEP'] = nil
+  ENV['RCT_USE_PREBUILT_RNCORE'] = nil
+else
+  ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+  ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+end
+
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 
 prepare_react_native_project!
 
 target 'Nuvio' do
-  use_expo_modules!(exclude: ['expo-libvlc-player'])
+  # Conditionally exclude modules incompatible with Mac Catalyst
+  expo_exclude = ['expo-libvlc-player']
+  expo_exclude << 'expo-live-activity' if is_catalyst
+  use_expo_modules!(exclude: expo_exclude)
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
@@ -57,11 +70,43 @@ target 'Nuvio' do
   pod 'Libass', :git => 'https://github.com/kingslay/FFmpegKit.git', :branch => 'main'
 
   post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      # Fix fmt consteval errors on Mac Catalyst
+      if target.name == 'fmt'
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'FMT_USE_CONSTEVAL=0'
+        end
+      end
+    end
+
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
+      :mac_catalyst_enabled => is_catalyst,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Patch fmt header to fix consteval errors on Mac Catalyst (survives pod install)
+    if is_catalyst
+      fmt_base = File.join(__dir__, 'Pods', 'fmt', 'include', 'fmt', 'base.h')
+      if File.exist?(fmt_base)
+        content = File.read(fmt_base)
+        patched = content.gsub(
+          "#if FMT_USE_CONSTEVAL\n#  define FMT_CONSTEVAL consteval",
+          "#if FMT_USE_CONSTEVAL && !defined(__APPLE__)\n#  define FMT_CONSTEVAL consteval"
+        )
+        if patched != content
+          File.chmod(0644, fmt_base)
+          File.write(fmt_base, patched)
+        end
+      end
+
+      # Create maccatalyst symlink for FFmpegKit libzvbi xcframework
+      libzvbi = File.join(__dir__, 'Pods', 'FFmpegKit', 'Sources', 'libzvbi.xcframework')
+      if Dir.exist?(libzvbi) && Dir.exist?(File.join(libzvbi, 'macos-arm64_x86_64')) && !File.exist?(File.join(libzvbi, 'ios-arm64_x86_64-maccatalyst'))
+        File.symlink('macos-arm64_x86_64', File.join(libzvbi, 'ios-arm64_x86_64-maccatalyst'))
+      end
+    end
   end
 end

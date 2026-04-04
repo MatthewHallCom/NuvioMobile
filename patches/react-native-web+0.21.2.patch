@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-web/dist/index.js b/node_modules/react-native-web/dist/index.js
+index 4f69987..b1a2c3f 100644
+--- a/node_modules/react-native-web/dist/index.js
++++ b/node_modules/react-native-web/dist/index.js
+@@ -67,3 +67,8 @@ export { default as DeviceEventEmitter } from './exports/DeviceEventEmitter';
+ export { default as useColorScheme } from './exports/useColorScheme';
+ export { default as useLocaleContext } from './exports/useLocaleContext';
+ export { default as useWindowDimensions } from './exports/useWindowDimensions';
++// --- Nuvio desktop shims for native-only APIs ---
++export const ToastAndroid = { show(){}, showWithGravity(){}, showWithGravityAndOffset(){}, SHORT:0, LONG:1, TOP:0, BOTTOM:1, CENTER:2 };
++export const ActionSheetIOS = { showActionSheetWithOptions(){}, showShareActionSheetWithOptions(){} };
++export const requireNativeComponent = () => ({ render: () => null });
++export { unstable_batchedUpdates } from 'react-dom';

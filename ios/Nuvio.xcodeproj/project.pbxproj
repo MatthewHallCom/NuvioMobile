@@ -27,8 +27,10 @@
 		D102CD3E3CCC4B83AC0F4DBE /* LiveActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3182DD61A7C04BD383DBB4B0 /* LiveActivityView.swift */; };
 		DEB0D346CF964886AD06A268 /* LiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C77B925A48A4711B3B59C6A /* LiveActivityWidget.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F1924CDEBB5847D8A1AFD925 /* LiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 37E2BF6107484CD098F81560 /* LiveActivity.appex */; };
+		F1924CDEBB5847D8A1AFD925 /* LiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 37E2BF6107484CD098F81560 /* LiveActivity.appex */; platformFilter = ios; };
 		F4B2944DA5D06650F3B40F2A /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B2F28305B8518622853186 /* ExpoModulesProvider.swift */; };
+		31359105132A4173AAF047C7 /* LiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C503B11B79DE46DC900FA929 /* LiveActivity.appex */; };
+		6E66D5A8F0294D24AE7F1067 /* LiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3D8BEDF99508411488177674 /* LiveActivity.appex */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -37,6 +39,20 @@
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = BB0FA6CBF7FD404994DB1E52;
+			remoteInfo = LiveActivity;
+		};
+		620B22385A8C4868A831A6AD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 092EAA1A1E5C4E5EA62788C8;
+			remoteInfo = LiveActivity;
+		};
+		DFDD34DB433A46C4881EA73D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 59746F4F930C4A1C936801B9;
 			remoteInfo = LiveActivity;
 		};
 /* End PBXContainerItemProxy section */
@@ -49,9 +65,31 @@
 			dstSubfolderSpec = 13;
 			files = (
 				F1924CDEBB5847D8A1AFD925 /* LiveActivity.appex in Embed Foundation Extensions */,
+				31359105132A4173AAF047C7 /* LiveActivity.appex in Embed Foundation Extensions */,
+				6E66D5A8F0294D24AE7F1067 /* LiveActivity.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1CEEB33DEDE44738998C98F2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Embed Foundation Extensions";
+			dstPath = "";
+			dstSubfolderSpec = 13;
+		};
+		3F758A9F34014512A161D598 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Embed Foundation Extensions";
+			dstPath = "";
+			dstSubfolderSpec = 13;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -86,6 +124,8 @@
 		F03926C841844CC38C468345 /* Image+dynamic.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; path = "Image+dynamic.swift"; sourceTree = "<group>"; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Nuvio/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Nuvio-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Nuvio-Bridging-Header.h"; path = "Nuvio/Nuvio-Bridging-Header.h"; sourceTree = "<group>"; };
+		C503B11B79DE46DC900FA929 /* LiveActivity.appex */ = {isa = PBXFileReference; name = "LiveActivity.appex"; path = "LiveActivity.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = wrapper.app-extension; includeInIndex = 0; };
+		3D8BEDF99508411488177674 /* LiveActivity.appex */ = {isa = PBXFileReference; name = "LiveActivity.appex"; path = "LiveActivity.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = wrapper.app-extension; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +138,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		2341847DAC4A41A89AA0DED2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		26DBB26CBBB34F9A8BD93734 /* Embed Foundation Extensions */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		67AA9614B81349F1A505058E /* Embed Foundation Extensions */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -170,6 +224,8 @@
 				6BFD9CA52F844119ABE664C4 /* LiveActivity */,
 				94DA158AE0BA28C86D2B8468 /* Pods */,
 				FD98B8AFFD47909E52F111EF /* ExpoModulesProviders */,
+				069DC0C3D8D84E298CC117F6 /* LiveActivity */,
+				973046909609456C915BF7E7 /* LiveActivity */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -181,6 +237,8 @@
 			children = (
 				13B07F961A680F5B00A75B9A /* Nuvio.app */,
 				37E2BF6107484CD098F81560 /* LiveActivity.appex */,
+				C503B11B79DE46DC900FA929 /* LiveActivity.appex */,
+				3D8BEDF99508411488177674 /* LiveActivity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,6 +277,46 @@
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
+		069DC0C3D8D84E298CC117F6 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				B36264437D84461BBC2BB706 /* Color+hex.swift */,
+				3A20BAB83F6E40D880665E14 /* Date+toTimerInterval.swift */,
+				F03926C841844CC38C468345 /* Image+dynamic.swift */,
+				3182DD61A7C04BD383DBB4B0 /* LiveActivityView.swift */,
+				9C77B925A48A4711B3B59C6A /* LiveActivityWidget.swift */,
+				1B775F1944CB4E2EB043DB23 /* LiveActivityWidgetBundle.swift */,
+				65BDE00720574797863FA748 /* View+applyIfPresent.swift */,
+				A0AC8A8984F4495492E13EFD /* View+applyWidgetURL.swift */,
+				D296491CC4F4406182E2A2BC /* ViewHelpers.swift */,
+				E93B94AE2F7240878D655B2F /* Info.plist */,
+				348452A2DFC344C2BC70A974 /* Assets.xcassets */,
+				0E5AC167979645D9ADB47923 /* LiveActivity.entitlements */,
+			);
+			name = LiveActivity;
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		973046909609456C915BF7E7 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				B36264437D84461BBC2BB706 /* Color+hex.swift */,
+				3A20BAB83F6E40D880665E14 /* Date+toTimerInterval.swift */,
+				F03926C841844CC38C468345 /* Image+dynamic.swift */,
+				3182DD61A7C04BD383DBB4B0 /* LiveActivityView.swift */,
+				9C77B925A48A4711B3B59C6A /* LiveActivityWidget.swift */,
+				1B775F1944CB4E2EB043DB23 /* LiveActivityWidgetBundle.swift */,
+				65BDE00720574797863FA748 /* View+applyIfPresent.swift */,
+				A0AC8A8984F4495492E13EFD /* View+applyWidgetURL.swift */,
+				D296491CC4F4406182E2A2BC /* ViewHelpers.swift */,
+				E93B94AE2F7240878D655B2F /* Info.plist */,
+				348452A2DFC344C2BC70A974 /* Assets.xcassets */,
+				0E5AC167979645D9ADB47923 /* LiveActivity.entitlements */,
+			);
+			name = LiveActivity;
+			path = LiveActivity;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -236,11 +334,15 @@
 				7D1788E2D4EF42D9BD43136D /* Upload Debug Symbols to Sentry */,
 				8773BA7C99F44506A4A25842 /* Embed Foundation Extensions */,
 				0014ED4AAB03BFF76DF3B778 /* [CP] Embed Pods Frameworks */,
+				1CEEB33DEDE44738998C98F2 /* Embed Foundation Extensions */,
+				3F758A9F34014512A161D598 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				65AA2578A3174CBBAFE7AF11 /* PBXTargetDependency */,
+				CC9F2147EFC8402A8C98F3C3 /* PBXTargetDependency */,
+				3FE35216447F4B5980C35C71 /* PBXTargetDependency */,
 			);
 			name = Nuvio;
 			productName = Nuvio;
@@ -264,6 +366,40 @@
 			productReference = 37E2BF6107484CD098F81560 /* LiveActivity.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		092EAA1A1E5C4E5EA62788C8 /* LiveActivity */ = {
+			isa = PBXNativeTarget;
+			name = LiveActivity;
+			productName = LiveActivity;
+			productReference = C503B11B79DE46DC900FA929;
+			productType = "com.apple.product-type.app-extension";
+			buildConfigurationList = 66EFB8D591FD443EBEA95807;
+			buildPhases = (
+				20F337F3C8D4443E89E71284 /* Embed Foundation Extensions */,
+				26DBB26CBBB34F9A8BD93734 /* Embed Foundation Extensions */,
+				75CDBCCDAAE24DDA8250AD7F /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+		};
+		59746F4F930C4A1C936801B9 /* LiveActivity */ = {
+			isa = PBXNativeTarget;
+			name = LiveActivity;
+			productName = LiveActivity;
+			productReference = 3D8BEDF99508411488177674;
+			productType = "com.apple.product-type.app-extension";
+			buildConfigurationList = F4B93C25D3CE4ACD945C8B50;
+			buildPhases = (
+				181664C417964291932C647D /* Embed Foundation Extensions */,
+				67AA9614B81349F1A505058E /* Embed Foundation Extensions */,
+				4FFBAE44ED0744F2B938E70B /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -273,14 +409,18 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						DevelopmentTeam = 8QBDZ766S3;
 						LastSwiftMigration = 1250;
 						ProvisioningStyle = Automatic;
 					};
 					BB0FA6CBF7FD404994DB1E52 = {
-						DevelopmentTeam = 8QBDZ766S3;
 						LastSwiftMigration = 1250;
 						ProvisioningStyle = Automatic;
+					};
+					092EAA1A1E5C4E5EA62788C8 = {
+						LastSwiftMigration = 1250;
+					};
+					59746F4F930C4A1C936801B9 = {
+						LastSwiftMigration = 1250;
 					};
 				};
 			};
@@ -299,6 +439,8 @@
 			targets = (
 				13B07F861A680F5B00A75B9A /* Nuvio */,
 				BB0FA6CBF7FD404994DB1E52 /* LiveActivity */,
+				092EAA1A1E5C4E5EA62788C8 /* LiveActivity */,
+				59746F4F930C4A1C936801B9 /* LiveActivity */,
 			);
 		};
 /* End PBXProject section */
@@ -323,6 +465,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		75CDBCCDAAE24DDA8250AD7F /* Embed Foundation Extensions */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				357A8847EA6B42B792A617D4 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4FFBAE44ED0744F2B938E70B /* Embed Foundation Extensions */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				357A8847EA6B42B792A617D4 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -333,14 +491,10 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Nuvio/Pods-Nuvio-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -418,7 +572,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoLocalization/ExpoLocalization_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoSystemUI/ExpoSystemUI_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/KSPlayer/KSPlayer_KSPlayer.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesObjC/FBLPromises_Privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_ROOT}/../../node_modules/react-native-vector-icons/Fonts/AntDesign.ttf",
 				"${PODS_ROOT}/../../node_modules/react-native-vector-icons/Fonts/Entypo.ttf",
@@ -444,16 +598,10 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/Sentry/Sentry.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/boost/boost_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-launcher/EXDevLauncher.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-menu/EXDevMenu.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleCastCoreResources.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleCastUIResources.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleCastOptionalUIResources.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/MaterialDialogs.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleSansBold.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleSansMedium.bundle",
-				"${PODS_ROOT}/google-cast-sdk/GoogleCastSDK-ios-4.8.4_static_xcframework/GoogleCast.xcframework/ios-arm64/GoogleCast.framework/GoogleSansRegular.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/google-cast-sdk/GoogleCast.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/glog/glog_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/lottie-ios/LottiePrivacyInfo.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/lottie-react-native/Lottie_React_Native_Privacy.bundle",
 			);
@@ -469,7 +617,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoLocalization_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoSystemUI_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/KSPlayer_KSPlayer.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/FBLPromises_Privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AntDesign.ttf",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Entypo.ttf",
@@ -495,16 +643,10 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Sentry.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/boost_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevLauncher.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevMenu.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleCastCoreResources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleCastUIResources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleCastOptionalUIResources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MaterialDialogs.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleSansBold.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleSansMedium.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleSansRegular.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleCast.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/glog_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/LottiePrivacyInfo.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Lottie_React_Native_Privacy.bundle",
 			);
@@ -569,6 +711,38 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		20F337F3C8D4443E89E71284 /* Embed Foundation Extensions */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9BE191900481495083B7ECC1 /* "Color+hex.swift" in Sources */,
+				3A4B91216E8D486E9000CD6C /* "Date+toTimerInterval.swift" in Sources */,
+				B3BB1BBDA8C742DC9A32EACF /* "Image+dynamic.swift" in Sources */,
+				D102CD3E3CCC4B83AC0F4DBE /* LiveActivityView.swift in Sources */,
+				DEB0D346CF964886AD06A268 /* LiveActivityWidget.swift in Sources */,
+				4F1568831D134295A56C0263 /* LiveActivityWidgetBundle.swift in Sources */,
+				0512F937B36046F581AF6A55 /* "View+applyIfPresent.swift" in Sources */,
+				94F843501BFD40C384CBB500 /* "View+applyWidgetURL.swift" in Sources */,
+				7069406A1E324608A86CC6C9 /* ViewHelpers.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		181664C417964291932C647D /* Embed Foundation Extensions */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9BE191900481495083B7ECC1 /* "Color+hex.swift" in Sources */,
+				3A4B91216E8D486E9000CD6C /* "Date+toTimerInterval.swift" in Sources */,
+				B3BB1BBDA8C742DC9A32EACF /* "Image+dynamic.swift" in Sources */,
+				D102CD3E3CCC4B83AC0F4DBE /* LiveActivityView.swift in Sources */,
+				DEB0D346CF964886AD06A268 /* LiveActivityWidget.swift in Sources */,
+				4F1568831D134295A56C0263 /* LiveActivityWidgetBundle.swift in Sources */,
+				0512F937B36046F581AF6A55 /* "View+applyIfPresent.swift" in Sources */,
+				94F843501BFD40C384CBB500 /* "View+applyWidgetURL.swift" in Sources */,
+				7069406A1E324608A86CC6C9 /* ViewHelpers.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -576,6 +750,16 @@
 			isa = PBXTargetDependency;
 			target = BB0FA6CBF7FD404994DB1E52 /* LiveActivity */;
 			targetProxy = DBC6C07FF91444EEAB5F4C66 /* PBXContainerItemProxy */;
+		};
+		CC9F2147EFC8402A8C98F3C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 092EAA1A1E5C4E5EA62788C8 /* LiveActivity */;
+			targetProxy = 620B22385A8C4868A831A6AD /* PBXContainerItemProxy */;
+		};
+		3FE35216447F4B5980C35C71 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 59746F4F930C4A1C936801B9 /* LiveActivity */;
+			targetProxy = DFDD34DB433A46C4881EA73D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -590,6 +774,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 8QBDZ766S3;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -602,6 +787,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SDKROOT)/usr/lib/swift",
+					"$(SDKROOT)/System/iOSSupport/usr/lib/swift",
+					"$(inherited)",
+				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -609,8 +799,10 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.hub;
-				PRODUCT_NAME = Nuvio;
+				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub";
+				PRODUCT_NAME = "Nuvio";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Nuvio/Nuvio-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -629,12 +821,18 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 8QBDZ766S3;
 				INFOPLIST_FILE = Nuvio/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(SDKROOT)/usr/lib/swift",
+					"$(SDKROOT)/System/iOSSupport/usr/lib/swift",
+					"$(inherited)",
 				);
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
@@ -643,8 +841,10 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.hub;
-				PRODUCT_NAME = Nuvio;
+				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub";
+				PRODUCT_NAME = "Nuvio";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "Nuvio/Nuvio-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -778,16 +978,24 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 37;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 8QBDZ766S3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SDKROOT)/usr/lib/swift",
+					"$(SDKROOT)/System/iOSSupport/usr/lib/swift",
+					"$(inherited)",
+				);
 				MARKETING_VERSION = 1.4.1;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.hub.LiveActivity;
+				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = matt.com.nuvio.hub.LiveActivity;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -802,21 +1010,111 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 37;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 8QBDZ766S3;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LiveActivity/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LIBRARY_SEARCH_PATHS = (
+					"$(SDKROOT)/usr/lib/swift",
+					"$(SDKROOT)/System/iOSSupport/usr/lib/swift",
+					"$(inherited)",
+				);
 				MARKETING_VERSION = 1.4.1;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.nuvio.hub.LiveActivity;
+				PRESERVE_DEAD_CODE_INITS_AND_TERMS = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = matt.com.nuvio.hub.LiveActivity;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		6A549454C57149E6B276BCC7 /* Debug */ = {
+			name = Debug;
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				CURRENT_PROJECT_VERSION = "40";
+				IPHONEOS_DEPLOYMENT_TARGET = "16.2";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub.LiveActivity";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = "1.4.4";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				CODE_SIGN_ENTITLEMENTS = "LiveActivity/LiveActivity.entitlements";
+				APPLICATION_EXTENSION_API_ONLY = "YES";
+				DEVELOPMENT_TEAM = 8QBDZ766S3;
+			};
+		};
+		963DE9AB5159473F9BFEE69D /* Release */ = {
+			name = Release;
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				CURRENT_PROJECT_VERSION = "40";
+				IPHONEOS_DEPLOYMENT_TARGET = "16.2";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub.LiveActivity";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = "1.4.4";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				CODE_SIGN_ENTITLEMENTS = "LiveActivity/LiveActivity.entitlements";
+				APPLICATION_EXTENSION_API_ONLY = "YES";
+				DEVELOPMENT_TEAM = 8QBDZ766S3;
+			};
+		};
+		041AC9F9B9AC4AACAFC9FCB8 /* Debug */ = {
+			name = Debug;
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				CURRENT_PROJECT_VERSION = "40";
+				IPHONEOS_DEPLOYMENT_TARGET = "16.2";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub.LiveActivity";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = "1.4.4";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				CODE_SIGN_ENTITLEMENTS = "LiveActivity/LiveActivity.entitlements";
+				APPLICATION_EXTENSION_API_ONLY = "YES";
+			};
+		};
+		A57045A20C144731965C2434 /* Release */ = {
+			name = Release;
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				INFOPLIST_FILE = LiveActivity/Info.plist;
+				CURRENT_PROJECT_VERSION = "40";
+				IPHONEOS_DEPLOYMENT_TARGET = "16.2";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.nuvio.hub.LiveActivity";
+				GENERATE_INFOPLIST_FILE = "YES";
+				INFOPLIST_KEY_CFBundleDisplayName = LiveActivity;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				MARKETING_VERSION = "1.4.4";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				CODE_SIGN_ENTITLEMENTS = "LiveActivity/LiveActivity.entitlements";
+				APPLICATION_EXTENSION_API_ONLY = "YES";
+			};
 		};
 /* End XCBuildConfiguration section */
 
@@ -844,6 +1142,24 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		66EFB8D591FD443EBEA95807 /* Build configuration list for PBXNativeTarget "LiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6A549454C57149E6B276BCC7 /* Debug */,
+				963DE9AB5159473F9BFEE69D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F4B93C25D3CE4ACD945C8B50 /* Build configuration list for PBXNativeTarget "LiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				041AC9F9B9AC4AACAFC9FCB8 /* Debug */,
+				A57045A20C144731965C2434 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

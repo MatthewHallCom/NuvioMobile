@@ -357,6 +357,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Keep active native background tasks in memory (not persisted)
   const tasksRef = useRef<Map<string, any>>(new Map());
   const lastBytesRef = useRef<Map<string, { bytes: number; time: number }>>(new Map());
+  const processQueueRef = useRef<(() => void) | null>(null);
 
   // Persist and restore
   useEffect(() => {
@@ -633,6 +634,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
         tasksRef.current.delete(taskId);
         lastBytesRef.current.delete(taskId);
+
+        // Start next queued download
+        processQueueRef.current?.();
       })
       .error(({ error }: any) => {
         updateDownload(taskId, (d) => ({
@@ -645,6 +649,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         stopLiveActivityForDownload(taskId, { title: current?.title, subtitle: 'Error', progressPercent: current?.progress });
 
         console.log(`[DownloadsContext] Background download error: ${taskId}`, error);
+
+        // Start next queued download
+        processQueueRef.current?.();
       });
   }, [maybeNotifyProgress, maybeUpdateLiveActivity, notifyCompleted, stopLiveActivityForDownload, updateDownload]);
 
@@ -774,12 +781,94 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return () => sub.remove();
   }, [refreshAllDownloadsFromDisk, stopAllLiveActivities, syncLiveActivitiesForBackground]);
 
+  // Start a queued download by creating the native task
+  const startQueuedDownload = useCallback((item: DownloadItem) => {
+    const destinationPath = item.fileUri ? stripFileScheme(item.fileUri) : null;
+    if (!destinationPath) {
+      updateDownload(item.id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
+      return;
+    }
+
+    updateDownload(item.id, (d) => ({ ...d, status: 'downloading', updatedAt: Date.now() }));
+    maybeUpdateLiveActivity({ ...item, status: 'downloading' });
+
+    const task = createDownloadTask({
+      id: item.id,
+      url: item.sourceUrl,
+      destination: destinationPath,
+      headers: item.headers,
+      metadata: {
+        contentId: item.contentId,
+        type: item.type,
+        title: item.title,
+        year: item.year,
+        providerName: item.providerName,
+        season: item.season,
+        episode: item.episode,
+        episodeTitle: item.episodeTitle,
+        quality: item.quality,
+        posterUrl: item.posterUrl,
+        sourceUrl: item.sourceUrl,
+        headers: item.headers,
+        fileUri: item.fileUri,
+        relativeFilePath: item.relativeFilePath,
+        imdbId: item.imdbId,
+        tmdbId: item.tmdbId,
+      },
+    });
+
+    tasksRef.current.set(item.id, task);
+    attachDownloadTask(task);
+    lastBytesRef.current.set(item.id, { bytes: 0, time: Date.now() });
+
+    try {
+      console.log(`[DownloadsContext] Starting native download task: ${item.id}`);
+      task.start();
+    } catch (e) {
+      console.log('[DownloadsContext] Failed to start background download', e);
+      updateDownload(item.id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
+      processQueueRef.current?.();
+    }
+  }, [attachDownloadTask, maybeUpdateLiveActivity, updateDownload]);
+
+  // Process the download queue — only 1 download at a time
+  const processQueue = useCallback(() => {
+    const current = downloadsRef.current;
+    const hasActive = current.some(d => d.status === 'downloading');
+    if (hasActive) return;
+
+    const next = current.filter(d => d.status === 'queued').sort((a, b) => a.createdAt - b.createdAt)[0];
+    if (!next) return;
+
+    // Check if there's an existing native task (paused download being resumed)
+    const existingTask = tasksRef.current.get(next.id);
+    if (existingTask) {
+      updateDownload(next.id, (d) => ({ ...d, status: 'downloading', updatedAt: Date.now() }));
+      maybeUpdateLiveActivity({ ...next, status: 'downloading' });
+      try {
+        existingTask.resume();
+      } catch (e) {
+        console.log(`[DownloadsContext] Resume failed in queue: ${next.id}`, e);
+        updateDownload(next.id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
+        processQueueRef.current?.();
+      }
+    } else {
+      startQueuedDownload(next);
+    }
+  }, [startQueuedDownload, updateDownload, maybeUpdateLiveActivity]);
+
+  useEffect(() => {
+    processQueueRef.current = processQueue;
+  }, [processQueue]);
+
   const resumeDownload = useCallback(async (id: string) => {
     const item = downloadsRef.current.find(d => d.id === id);
     if (!item) return;
 
-    updateDownload(id, (d) => ({ ...d, status: 'downloading', updatedAt: Date.now() }));
+    // Set to queued — processQueue will start it when a slot is free
+    updateDownload(id, (d) => ({ ...d, status: 'queued', updatedAt: Date.now() }));
 
+    // Re-attach native task if needed
     let task = tasksRef.current.get(id);
     if (!task) {
       try {
@@ -793,21 +882,12 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     if (!task) {
-      // Task missing (likely not started / already finished). Let user restart download.
       updateDownload(id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
       return;
     }
 
-    try {
-      await task.resume();
-
-      // If app is backgrounded, kick Live Activity updates.
-      maybeUpdateLiveActivity({ ...item, status: 'downloading' });
-    } catch (e) {
-      console.log(`[DownloadsContext] Resume failed: ${id}`, e);
-      updateDownload(id, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
-    }
-  }, [attachDownloadTask, maybeUpdateLiveActivity, updateDownload]);
+    processQueueRef.current?.();
+  }, [attachDownloadTask, updateDownload]);
 
   const startDownload = useCallback(async (input: StartDownloadInput) => {
     console.log(`[DownloadsContext] startDownload called:`, { title: input.title, type: input.type, url: input.url?.substring(0, 80) });
@@ -896,7 +976,7 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       downloadedBytes: 0,
       totalBytes: 0,
       progress: 0,
-      status: 'downloading',
+      status: 'queued',
       speedBps: 0,
       etaSeconds: undefined,
       posterUrl: input.posterUrl || null,
@@ -941,49 +1021,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     })();
 
-    // If somehow started while app is backgrounded, show Live Activity.
-    maybeUpdateLiveActivity(newItem);
-
-    const task = createDownloadTask({
-      id: compoundId,
-      url: input.url,
-      destination: destinationPath,
-      headers: input.headers,
-      metadata: {
-        contentId,
-        type: input.type,
-        title: input.title,
-        year: typeof input.year === 'number' ? input.year : undefined,
-        providerName: input.providerName,
-        season: input.season,
-        episode: input.episode,
-        episodeTitle: input.episodeTitle,
-        quality: input.quality,
-        posterUrl: input.posterUrl || null,
-        sourceUrl: input.url,
-        headers: input.headers,
-        fileUri,
-        relativeFilePath,
-        imdbId: input.imdbId,
-        tmdbId: input.tmdbId,
-      },
-    });
-
-    tasksRef.current.set(compoundId, task);
-    attachDownloadTask(task);
-    lastBytesRef.current.set(compoundId, { bytes: 0, time: Date.now() });
-
-    // Start the native background download.
-    try {
-      console.log(`[DownloadsContext] Starting native download task: ${compoundId} -> ${destinationPath}`);
-      task.start();
-      console.log(`[DownloadsContext] Native download task started successfully: ${compoundId}`);
-    } catch (e) {
-      console.log('[DownloadsContext] Failed to start background download', e);
-      updateDownload(compoundId, (d) => ({ ...d, status: 'error', updatedAt: Date.now() }));
-      throw e;
-    }
-  }, [attachDownloadTask, maybeUpdateLiveActivity, resumeDownload, updateDownload]);
+    // Process the queue — will start this download if no other is active
+    processQueueRef.current?.();
+  }, [resumeDownload, updateDownload]);
 
   const pauseDownload = useCallback(async (id: string) => {
     console.log(`[DownloadsContext] Pausing download: ${id}`);
@@ -1003,6 +1043,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       console.log(`[DownloadsContext] Pause failed: ${id}`, e);
     }
+
+    // Start next queued download
+    processQueueRef.current?.();
   }, [stopLiveActivityForDownload, updateDownload]);
 
   const cancelDownload = useCallback(async (id: string) => {
@@ -1024,6 +1067,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       await FileSystem.deleteAsync(resolvedFileUri, { idempotent: true }).catch(() => { });
     }
     setDownloads(prev => prev.filter(d => d.id !== id));
+
+    // Start next queued download
+    processQueueRef.current?.();
   }, [stopLiveActivityForDownload]);
 
   const removeDownload = useCallback(async (id: string) => {
@@ -1041,6 +1087,9 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       );
     }
     setDownloads(prev => prev.filter(d => d.id !== id));
+
+    // Start next queued download
+    processQueueRef.current?.();
   }, [stopLiveActivityForDownload]);
 
   // Auto-pause/resume downloads on WiFi change

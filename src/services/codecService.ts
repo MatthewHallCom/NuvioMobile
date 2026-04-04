@@ -25,6 +25,14 @@ const CODEC_SUPPORT: Record<string, Record<VideoCodec, CodecSupport>> = {
     xvid: 'yes',
     mpeg2: 'yes',
   },
+  desktop: {
+    h264: 'yes',
+    h265: 'yes',
+    vp9: 'yes',
+    av1: 'yes',
+    xvid: 'yes',
+    mpeg2: 'yes',
+  },
 };
 
 /**
@@ -63,7 +71,7 @@ export function parseCodecFromTitle(title?: string, name?: string, filename?: st
  * Get codec support level for current platform.
  */
 export function getCodecSupport(codec: VideoCodec): CodecSupport {
-  const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+  const platform = Platform.OS === 'web' ? 'desktop' : Platform.OS === 'ios' ? 'ios' : 'android';
   return CODEC_SUPPORT[platform]?.[codec] ?? 'yes';
 }
 

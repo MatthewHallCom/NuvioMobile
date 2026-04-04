@@ -938,7 +938,7 @@ const HomeScreen = () => {
   // Memoize scroll handler with requestAnimationFrame throttling for better performance
   const handleScroll = useCallback((event: any) => {
     // Persist the event before using requestAnimationFrame to prevent event pooling issues
-    event.persist();
+    event.persist?.();
 
     // Cancel any pending animation frame
     if (scrollAnimationFrameRef.current !== null) {

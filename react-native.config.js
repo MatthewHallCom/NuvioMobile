@@ -1,4 +1,5 @@
-// Prevent expo-libvlc-player from linking on iOS (Android only)
+const isCatalyst = process.env.CATALYST === '1';
+
 module.exports = {
   dependencies: {
     'expo-libvlc-player': {
@@ -11,7 +12,22 @@ module.exports = {
         ios: null,
       },
     },
+    // Conditionally disable modules incompatible with Mac Catalyst
+    ...(isCatalyst
+      ? {
+          // Google Cast SDK has no Catalyst headers
+          'react-native-google-cast': {
+            platforms: {
+              ios: null,
+            },
+          },
+          // Skia macOS libs are tagged macOS, not macCatalyst
+          '@shopify/react-native-skia': {
+            platforms: {
+              ios: null,
+            },
+          },
+        }
+      : {}),
   },
 };
-
-
