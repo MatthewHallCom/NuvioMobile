@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A45D407A3F234071855AD7F9 /* CatalystWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3479F5F83B7E44DCAFB5E3E1 /* CatalystWindowManager.swift */; };
+		8340243AD0CC4864A13289B5 /* CatalystWindowManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 671463A3F41542F6AC0722BE /* CatalystWindowManager.m */; };
 		0512F937B36046F581AF6A55 /* View+applyIfPresent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BDE00720574797863FA748 /* View+applyIfPresent.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		24FC08E856045AC6A95D753A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 495FF0F91AFAF8A860B9D485 /* PrivacyInfo.xcprivacy */; };
@@ -94,6 +96,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3479F5F83B7E44DCAFB5E3E1 /* CatalystWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Nuvio/CatalystWindowManager.swift; sourceTree = "<group>"; name = CatalystWindowManager.swift; };
+		671463A3F41542F6AC0722BE /* CatalystWindowManager.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = Nuvio/CatalystWindowManager.m; sourceTree = "<group>"; name = CatalystWindowManager.m; };
 		0E5AC167979645D9ADB47923 /* LiveActivity.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; path = LiveActivity.entitlements; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Nuvio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nuvio.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Nuvio/Images.xcassets; sourceTree = "<group>"; };
@@ -169,6 +173,8 @@
 			isa = PBXGroup;
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
+				3479F5F83B7E44DCAFB5E3E1 /* CatalystWindowManager.swift */,
+				671463A3F41542F6AC0722BE /* CatalystWindowManager.m */,
 				F11748442D0722820044C1D9 /* Nuvio-Bridging-Header.h */,
 				9FBA88F02E86ECD700892850 /* KSPlayerManager.m */,
 				9FBA88F12E86ECD700892850 /* KSPlayerModule.swift */,
@@ -596,6 +602,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
+				A45D407A3F234071855AD7F9 /* CatalystWindowManager.swift in Sources */,
+				8340243AD0CC4864A13289B5 /* CatalystWindowManager.m in Sources */,
 				F4B2944DA5D06650F3B40F2A /* ExpoModulesProvider.swift in Sources */,
 				9FBA88F42E86ECD700892850 /* KSPlayerViewManager.swift in Sources */,
 				9FBA88F52E86ECD700892850 /* KSPlayerModule.swift in Sources */,

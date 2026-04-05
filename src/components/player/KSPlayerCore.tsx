@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { View, StatusBar, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
+import { View, StatusBar, StyleSheet, Animated, Dimensions, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
@@ -101,6 +101,21 @@ const KSPlayerCore: React.FC = () => {
 
   const videoType = (params as any)?.videoType as string | undefined;
   const isOfflinePlayback = uri?.startsWith('file://') ?? false;
+
+  // Mac Catalyst: hide titlebar/toolbar when player is active
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    try {
+      const CatalystWM = require('react-native').NativeModules.CatalystWindowManager;
+      CatalystWM?.setFullScreen(true);
+    } catch {}
+    return () => {
+      try {
+        const CatalystWM = require('react-native').NativeModules.CatalystWindowManager;
+        CatalystWM?.setFullScreen(false);
+      } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -654,6 +669,9 @@ const KSPlayerCore: React.FC = () => {
   const handleClose = useCallback(() => {
     if (isSyncingBeforeClose.current) return;
     isSyncingBeforeClose.current = true;
+
+    // Pause playback immediately before navigating away
+    setPaused(true);
 
     traktAutosync.handlePlaybackEnd(currentTime, duration, 'user_close');
 

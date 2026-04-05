@@ -806,7 +806,22 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         list.map(async (d) => {
           const resolvedFileUri = resolveDownloadFileUri(d.relativeFilePath, d.fileUri);
           if (!resolvedFileUri) return;
-          if (d.status === 'completed' || d.status === 'queued') return;
+
+          // For completed downloads, check if the file still exists on disk
+          if (d.status === 'completed') {
+            try {
+              const checkUri = d.fileUri ? toFileUri(String(d.fileUri)) : resolvedFileUri;
+              const info = await FileSystem.getInfoAsync(checkUri);
+              if (!info.exists) {
+                // File was deleted externally — remove from downloads list
+                setDownloads(prev => prev.filter(x => x.id !== d.id));
+                await offlineImageService.deleteImagesIfOrphaned(d.contentId, downloadsRef.current, d.id);
+              }
+            } catch { }
+            return;
+          }
+
+          if (d.status === 'queued') return;
 
           try {
             const info = await FileSystem.getInfoAsync(resolvedFileUri);
@@ -1165,9 +1180,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     const item = downloadsRef.current.find(d => d.id === id);
-    const resolvedFileUri = resolveDownloadFileUri(item?.relativeFilePath, item?.fileUri);
-    if (resolvedFileUri) {
-      await FileSystem.deleteAsync(resolvedFileUri, { idempotent: true }).catch(() => { });
+    // Prefer the stored absolute fileUri to handle cross-volume deletion correctly
+    const deleteUri = item?.fileUri ? toFileUri(String(item.fileUri)) : resolveDownloadFileUri(item?.relativeFilePath, item?.fileUri);
+    if (deleteUri) {
+      await FileSystem.deleteAsync(deleteUri, { idempotent: true }).catch(() => { });
     }
     setDownloads(prev => prev.filter(d => d.id !== id));
 
@@ -1178,9 +1194,10 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const removeDownload = useCallback(async (id: string) => {
     const item = downloadsRef.current.find(d => d.id === id);
     await stopLiveActivityForDownload(id, { title: item?.title, subtitle: 'Removed', progressPercent: item?.progress });
-    const resolvedFileUri = resolveDownloadFileUri(item?.relativeFilePath, item?.fileUri);
-    if (resolvedFileUri && item?.status === 'completed') {
-      await FileSystem.deleteAsync(resolvedFileUri, { idempotent: true }).catch(() => { });
+    // Prefer the stored absolute fileUri to handle cross-volume deletion correctly
+    const deleteUri = item?.fileUri ? toFileUri(String(item.fileUri)) : resolveDownloadFileUri(item?.relativeFilePath, item?.fileUri);
+    if (deleteUri && item?.status === 'completed') {
+      await FileSystem.deleteAsync(deleteUri, { idempotent: true }).catch(() => { });
     }
     if (item) {
       await offlineImageService.deleteImagesIfOrphaned(
