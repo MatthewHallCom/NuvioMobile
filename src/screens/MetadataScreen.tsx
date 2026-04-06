@@ -938,6 +938,7 @@ const MetadataScreen: React.FC = () => {
               bounces={Platform.OS === 'ios'}
               overScrollMode={Platform.OS === 'android' ? 'always' : 'always'}
               nestedScrollEnabled
+              directionalLockEnabled
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
             >

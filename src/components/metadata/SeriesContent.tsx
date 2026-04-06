@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, useWindowDimensions, useColorScheme, FlatList, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, useWindowDimensions, useColorScheme, FlatList, Modal, Pressable, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import FastImage from '@d11/react-native-fast-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FlashList, FlashListRef } from '@shopify/flash-list';
+
 import { useTheme } from '../../contexts/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
 import { Episode } from '../../types/metadata';
@@ -188,7 +188,7 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
   }, [deviceType]);
 
   const [episodeProgress, setEpisodeProgress] = useState<{ [key: string]: { currentTime: number; duration: number; lastUpdated: number } }>({});
-  // Delay item entering animations to avoid FlashList initial layout glitches
+  // Delay item entering animations to avoid initial layout glitches
   const [enableItemAnimations, setEnableItemAnimations] = useState(false);
   // Local TMDB hydration for rating/runtime when addon (Cinemeta) lacks these
   const [tmdbEpisodeOverrides, setTmdbEpisodeOverrides] = useState<{ [epKey: string]: { vote_average?: number; runtime?: number; still_path?: string } }>({});
@@ -209,7 +209,7 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
 
   // Add refs for the scroll views
   const seasonScrollViewRef = useRef<ScrollView | null>(null);
-  const episodeScrollViewRef = useRef<FlashListRef<Episode>>(null);
+
   const horizontalEpisodeScrollViewRef = useRef<FlatList<Episode>>(null);
 
   // Load saved global view mode preference when component mounts
@@ -1705,9 +1705,13 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
               initialNumToRender={3}
               maxToRenderPerBatch={5}
               windowSize={5}
-              snapToInterval={horizontalCardWidth + horizontalItemSpacing}
-              snapToAlignment="start"
-              decelerationRate="fast"
+              {...(Platform.OS !== 'web' && Platform.OS !== 'macos' ? {
+                snapToInterval: horizontalCardWidth + horizontalItemSpacing,
+                snapToAlignment: 'start' as const,
+                decelerationRate: 'fast' as const,
+              } : {
+                decelerationRate: 'normal' as const,
+              })}
               getItemLayout={(data, index) => {
                 const length = horizontalCardWidth + horizontalItemSpacing;
                 return {
@@ -1732,28 +1736,26 @@ const SeriesContentComponent: React.FC<SeriesContentProps> = ({
               }}
             />
           ) : (
-            // Vertical Layout (Traditional) - Using FlashList
-            <FlashList
+            // Vertical Layout (Traditional) - Rendered inline to avoid nested scroll conflicts
+            <View
               key={`episodes-${settings?.episodeLayoutStyle}-${selectedSeason}`}
-              ref={episodeScrollViewRef}
-              data={currentSeasonEpisodes}
-              renderItem={({ item: episode, index }) => (
-                <Animated.View
-                  entering={enableItemAnimations ? FadeIn.duration(300).delay(100 + index * 30) : undefined as any}
-                >
-                  {renderVerticalEpisodeCard(episode)}
-                </Animated.View>
-              )}
-              keyExtractor={episode => episode.id.toString()}
-              contentContainerStyle={[
+              style={[
                 styles.episodeListContentVertical,
                 {
                   paddingHorizontal: horizontalPadding,
                   paddingBottom: isTV ? 32 : isLargeTablet ? 28 : isTablet ? 24 : 8
                 }
               ]}
-              removeClippedSubviews
-            />
+            >
+              {currentSeasonEpisodes.map((episode, index) => (
+                <Animated.View
+                  key={episode.id.toString()}
+                  entering={enableItemAnimations ? FadeIn.duration(300).delay(100 + index * 30) : undefined as any}
+                >
+                  {renderVerticalEpisodeCard(episode)}
+                </Animated.View>
+              ))}
+            </View>
           )
         )}
       </Animated.View>
