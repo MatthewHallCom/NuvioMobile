@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Platform, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Feather from 'react-native-vector-icons/Feather';
+import { CastButton } from 'react-native-google-cast';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +70,8 @@ interface PlayerControlsProps {
   useExoPlayer?: boolean;
   canEnterPictureInPicture?: boolean;
   onEnterPictureInPicture?: () => void;
+  isCasting?: boolean;
+  onCastPress?: () => void;
   isBuffering?: boolean;
   imdbId?: string;
 }
@@ -118,6 +121,8 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   useExoPlayer,
   canEnterPictureInPicture,
   onEnterPictureInPicture,
+  isCasting,
+  onCastPress,
   isBuffering = false,
   imdbId,
 }) => {
@@ -414,6 +419,21 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
                     color="white"
                   />
                 </TouchableOpacity>
+              )}
+              {Platform.OS === 'android' && onCastPress && (
+                <>
+                  <CastButton style={{ width: 0, height: 0, opacity: 0 }} />
+                  <TouchableOpacity
+                    style={{ padding: 8 }}
+                    onPress={onCastPress}
+                  >
+                    <Feather
+                      name="cast"
+                      size={closeIconSize}
+                      color={isCasting ? currentTheme.colors.primary : "white"}
+                    />
+                  </TouchableOpacity>
+                </>
               )}
               <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
                 <Ionicons name="close" size={closeIconSize} color="white" />

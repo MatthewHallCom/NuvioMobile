@@ -27,6 +27,7 @@ import {
   probeVideoType,
   sortStreamsByQuality,
   sortStreamsBySize,
+  isChromecastCompatible,
 } from './utils';
 import { parseCodecFromTitle, getCodecWarning } from '../../services/codecService';
 import {
@@ -78,6 +79,7 @@ export const useStreamsScreen = () => {
   const [loadingProviders, setLoadingProviders] = useState<LoadingProviders>({});
   const [selectedProvider, setSelectedProvider] = useState('all');
   const [sizeSortMode, setSizeSortMode] = useState<'default' | 'size-asc' | 'size-desc'>('default');
+  const [chromecastFilter, setChromecastFilter] = useState(false);
   const [availableProviders, setAvailableProviders] = useState<Set<string>>(new Set());
   const prevProvidersRef = useRef<Set<string>>(new Set());
 
@@ -210,6 +212,10 @@ export const useStreamsScreen = () => {
 
   const handleSizeSortChange = useCallback((mode: 'default' | 'size-asc' | 'size-desc') => {
     setSizeSortMode(mode);
+  }, []);
+
+  const handleChromecastFilterChange = useCallback((enabled: boolean) => {
+    setChromecastFilter(enabled);
   }, []);
 
   // Quality and language filtering callbacks
@@ -983,6 +989,11 @@ export const useStreamsScreen = () => {
         }
       }
 
+      // Apply Chromecast compatibility filter
+      if (chromecastFilter) {
+        combinedStreams = combinedStreams.filter(isChromecastCompatible);
+      }
+
       if (combinedStreams.length === 0) return [];
 
       // Apply size sort if active
@@ -1011,6 +1022,11 @@ export const useStreamsScreen = () => {
         if (!isInstalledAddon) {
           const qualityFiltered = filterByQuality(providerStreams);
           filteredStreams = filterByLanguage(qualityFiltered);
+        }
+
+        // Apply Chromecast compatibility filter
+        if (chromecastFilter) {
+          filteredStreams = filteredStreams.filter(isChromecastCompatible);
         }
 
         if (filteredStreams.length === 0) return null;
@@ -1057,6 +1073,7 @@ export const useStreamsScreen = () => {
     addonResponseOrder,
     settings.streamSortMode,
     sizeSortMode,
+    chromecastFilter,
     selectedEpisode,
     metadata,
   ]);
@@ -1232,6 +1249,8 @@ export const useStreamsScreen = () => {
     handleStreamPress,
     sizeSortMode,
     handleSizeSortChange,
+    chromecastFilter,
+    handleChromecastFilterChange,
 
     // Loading states
     isLoading,

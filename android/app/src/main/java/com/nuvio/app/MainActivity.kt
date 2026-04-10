@@ -21,9 +21,6 @@ class MainActivity : ReactActivity() {
 // @generated begin react-native-google-cast-onCreate - expo prebuild (DO NOT MODIFY) sync-489050f2bf9933a98bbd9d93137016ae14c22faa
     RNGCCastContext.getSharedInstance(this)
 // @generated end react-native-google-cast-onCreate
-    
-    // Initialize Google Cast context
-    RNGCCastContext.getSharedInstance(this)
   }
 
   /**

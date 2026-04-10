@@ -10,7 +10,7 @@ import {
 import { LegendList } from '@legendapp/list';
 import { LinearGradient } from 'expo-linear-gradient';
 import FastImage from '@d11/react-native-fast-image';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView as ExpoBlurView } from 'expo-blur';
 import Animated, {
   useSharedValue,
@@ -56,6 +56,8 @@ interface TabletStreamsLayoutProps {
   handleProviderChange: (provider: string) => void;
   sizeSortMode: 'default' | 'size-asc' | 'size-desc';
   handleSizeSortChange: (mode: 'default' | 'size-asc' | 'size-desc') => void;
+  chromecastFilter: boolean;
+  handleChromecastFilterChange: (enabled: boolean) => void;
   activeFetchingScrapers: string[];
 
   // Loading states
@@ -102,6 +104,8 @@ const TabletStreamsLayout: React.FC<TabletStreamsLayoutProps> = ({
   handleProviderChange,
   sizeSortMode,
   handleSizeSortChange,
+  chromecastFilter,
+  handleChromecastFilterChange,
   activeFetchingScrapers,
   isAutoplayWaiting,
   autoplayTriggered,
@@ -535,6 +539,30 @@ const TabletStreamsLayout: React.FC<TabletStreamsLayoutProps> = ({
                           </Text>
                         )}
                       </TouchableOpacity>
+                      {Platform.OS === 'android' && (
+                        <TouchableOpacity
+                          style={[
+                            {
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: colors.elevation2,
+                              paddingHorizontal: 10,
+                              paddingVertical: 8,
+                              borderRadius: 16,
+                              marginLeft: 6,
+                            },
+                            chromecastFilter && { backgroundColor: colors.primary },
+                          ]}
+                          onPress={() => handleChromecastFilterChange(!chromecastFilter)}
+                          activeOpacity={0.7}
+                        >
+                          <MaterialCommunityIcons
+                            name={chromecastFilter ? 'cast-connected' : 'cast'}
+                            size={18}
+                            color={chromecastFilter ? colors.white : colors.highEmphasis}
+                          />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>

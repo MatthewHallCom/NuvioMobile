@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform }
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView as ExpoBlurView } from 'expo-blur';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { NavigationProp } from '@react-navigation/native';
 
 import AnimatedImage from '../../../components/AnimatedImage';
@@ -64,6 +64,8 @@ interface MobileStreamsLayoutProps {
   handleProviderChange: (provider: string) => void;
   sizeSortMode: 'default' | 'size-asc' | 'size-desc';
   handleSizeSortChange: (mode: 'default' | 'size-asc' | 'size-desc') => void;
+  chromecastFilter: boolean;
+  handleChromecastFilterChange: (enabled: boolean) => void;
   handleStreamPress: (stream: Stream) => void;
   
   // Loading
@@ -118,6 +120,8 @@ const MobileStreamsLayout = memo(
     handleProviderChange,
     sizeSortMode,
     handleSizeSortChange,
+    chromecastFilter,
+    handleChromecastFilterChange,
     handleStreamPress,
     loadingProviders,
     loadingStreams,
@@ -254,6 +258,22 @@ const MobileStreamsLayout = memo(
                       </Text>
                     )}
                   </TouchableOpacity>
+                  {Platform.OS === 'android' && (
+                    <TouchableOpacity
+                      style={[
+                        styles.sortButton,
+                        chromecastFilter && styles.sortButtonActive,
+                      ]}
+                      onPress={() => handleChromecastFilterChange(!chromecastFilter)}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialCommunityIcons
+                        name={chromecastFilter ? 'cast-connected' : 'cast'}
+                        size={18}
+                        color={chromecastFilter ? colors.white : colors.highEmphasis}
+                      />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </>
             )}

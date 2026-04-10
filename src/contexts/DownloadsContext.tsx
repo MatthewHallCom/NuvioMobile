@@ -61,6 +61,8 @@ export interface DownloadItem {
   localBannerPath?: string;   // file:// URI to cached banner
   // Network-pause tracking
   autoPausedByNetwork?: boolean;
+  // Retry tracking for placeholder/fake file detection
+  retryCount?: number;
 }
 
 type StartDownloadInput = {
@@ -100,6 +102,9 @@ type DownloadsContextValue = {
 const DownloadsContext = createContext<DownloadsContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'downloads_state_v1';
+const PLACEHOLDER_SIZE_THRESHOLD = 10 * 1024 * 1024; // 10MB — files this small are likely fake placeholders
+const MAX_PLACEHOLDER_RETRIES = 3;
+const RETRY_BACKOFF_BASE_MS = 5000; // 5s, 10s, 20s
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-z0-9\-_.()\s]/gi, '_').slice(0, 120).trim();
@@ -695,6 +700,45 @@ export const DownloadsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const finalPath = location ? String(location) : '';
         const finalUri = finalPath ? toFileUri(finalPath) : undefined;
         const relativeFilePath = getRelativeDownloadPath(finalPath || finalUri);
+
+        const downloadedSize = typeof bytesDownloaded === 'number' ? bytesDownloaded : 0;
+        const currentItem = downloadsRef.current.find(x => x.id === taskId);
+        const retryCount = currentItem?.retryCount ?? 0;
+
+        // Detect placeholder/fake files: if the completed file is ≤ 10MB, retry with backoff
+        if (downloadedSize > 0 && downloadedSize <= PLACEHOLDER_SIZE_THRESHOLD && retryCount < MAX_PLACEHOLDER_RETRIES) {
+          console.log(`[DownloadsContext] Placeholder detected for ${taskId}: ${(downloadedSize / 1024 / 1024).toFixed(2)}MB, retry ${retryCount + 1}/${MAX_PLACEHOLDER_RETRIES}`);
+
+          try {
+            completeHandler(taskId);
+          } catch { }
+          tasksRef.current.delete(taskId);
+          lastBytesRef.current.delete(taskId);
+
+          // Delete the placeholder file
+          const deleteUri = finalUri || currentItem?.fileUri;
+          if (deleteUri) {
+            FileSystem.deleteAsync(deleteUri, { idempotent: true }).catch(() => { });
+          }
+
+          const backoffMs = RETRY_BACKOFF_BASE_MS * Math.pow(2, retryCount);
+          updateDownload(taskId, (d) => ({
+            ...d,
+            status: 'queued',
+            downloadedBytes: 0,
+            progress: 0,
+            retryCount: retryCount + 1,
+            resumeData: undefined,
+            updatedAt: Date.now(),
+          }));
+
+          stopLiveActivityForDownload(taskId, { title: currentItem?.title, subtitle: `Retrying (${retryCount + 1}/${MAX_PLACEHOLDER_RETRIES})...` });
+
+          setTimeout(() => {
+            processQueueRef.current?.();
+          }, backoffMs);
+          return;
+        }
 
         updateDownload(taskId, (d) => ({
           ...d,

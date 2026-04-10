@@ -224,9 +224,6 @@ dependencies {
     
     // MPV Player library
     implementation files("libs/libmpv-release.aar")
-
-    // Google Cast Framework
-    implementation "com.google.android.gms:play-services-cast-framework:${safeExtGet('castFrameworkVersion', '+')}"
 }
 
 def safeExtGet(prop, fallback) {

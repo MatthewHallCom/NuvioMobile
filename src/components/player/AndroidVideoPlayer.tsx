@@ -21,6 +21,7 @@ import { usePlayerTracks } from './android/hooks/usePlayerTracks';
 
 import { usePlayerControls } from './android/hooks/usePlayerControls';
 import { useNextEpisode } from './android/hooks/useNextEpisode';
+import { useChromecast } from './android/hooks/useChromecast';
 
 // App-level Hooks
 import { useTraktAutosync } from '../../hooks/useTraktAutosync';
@@ -213,6 +214,71 @@ const AndroidVideoPlayer: React.FC = () => {
     exoPlayerRef,
     useExoPlayer
   );
+
+  // Chromecast integration
+  const chromecast = useChromecast(currentStreamUrl, title);
+
+  // Handle chromecast disconnect — resume local playback at cast position
+  useEffect(() => {
+    chromecast.setOnDisconnect((position: number) => {
+      controlsHook.seekToTime(position);
+      playerState.setPaused(false);
+    });
+  }, [chromecast.setOnDisconnect, controlsHook.seekToTime, playerState.setPaused]);
+
+  // Wrapper functions that route to cast or local controls
+  const effectiveTogglePlayback = useCallback(() => {
+    if (chromecast.isCasting) {
+      if (chromecast.castPlayerState === 'playing') {
+        chromecast.castPause();
+      } else {
+        chromecast.castPlay();
+      }
+    } else {
+      controlsHook.togglePlayback();
+    }
+  }, [chromecast.isCasting, chromecast.castPlayerState, chromecast.castPause, chromecast.castPlay, controlsHook.togglePlayback]);
+
+  const effectiveSeekToTime = useCallback((seconds: number) => {
+    if (chromecast.isCasting) {
+      chromecast.castSeek(seconds);
+    } else {
+      controlsHook.seekToTime(seconds);
+    }
+  }, [chromecast.isCasting, chromecast.castSeek, controlsHook.seekToTime]);
+
+  const effectiveSkip = useCallback((seconds: number) => {
+    if (chromecast.isCasting) {
+      const pos = chromecast.castStreamPosition ?? 0;
+      chromecast.castSeek(pos + seconds);
+    } else {
+      controlsHook.skip(seconds);
+    }
+  }, [chromecast.isCasting, chromecast.castStreamPosition, chromecast.castSeek, controlsHook.skip]);
+
+  const handleCastPress = useCallback(() => {
+    if (chromecast.isCasting) {
+      chromecast.stopCasting().then((position) => {
+        controlsHook.seekToTime(position);
+        playerState.setPaused(false);
+      });
+    } else if (chromecast.client) {
+      // Already connected to a device, start casting
+      chromecast.startCasting(playerState.currentTime);
+    } else {
+      // No session — show device picker
+      chromecast.showCastPicker();
+    }
+  }, [chromecast.isCasting, chromecast.client, chromecast.stopCasting, chromecast.startCasting, chromecast.showCastPicker, controlsHook.seekToTime, playerState.currentTime, playerState.setPaused]);
+
+  // Auto-start casting when a session connects and we aren't already casting
+  useEffect(() => {
+    if (chromecast.client && !chromecast.isCasting) {
+      chromecast.startCasting(playerState.currentTime);
+    }
+  // Only trigger when client becomes available
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chromecast.client]);
 
   const traktAutosync = useTraktAutosync({
     id: id || '',
@@ -571,9 +637,12 @@ const AndroidVideoPlayer: React.FC = () => {
   const controlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const handleClose = useCallback(() => {
+    if (chromecast.isCasting) {
+      chromecast.stopCasting().catch(() => {});
+    }
     if (navigation.canGoBack()) navigation.goBack();
     else navigation.reset({ index: 0, routes: [{ name: 'Home' }] } as any);
-  }, [navigation]);
+  }, [chromecast, navigation]);
 
   useEffect(() => {
     if (pipSupportLoggedRef.current === supportsPictureInPicture) return;
@@ -936,7 +1005,7 @@ const AndroidVideoPlayer: React.FC = () => {
             volume={volume}
             playbackSpeed={speedControl.playbackSpeed}
             resizeMode={playerState.resizeMode}
-            paused={playerState.paused}
+            paused={chromecast.isCasting ? true : playerState.paused}
             currentStreamUrl={currentStreamUrl}
             toggleControls={toggleControls}
             onLoad={handleLoad}
@@ -1072,10 +1141,10 @@ const AndroidVideoPlayer: React.FC = () => {
           volume={volume}
           controlsTimeout={controlsTimeout}
           resizeMode={playerState.resizeMode}
-          skip={controlsHook.skip}
+          skip={effectiveSkip}
           currentTime={playerState.currentTime}
           duration={playerState.duration}
-          seekToTime={controlsHook.seekToTime}
+          seekToTime={effectiveSeekToTime}
           formatTime={formatTime}
         />
 
@@ -1089,7 +1158,7 @@ const AndroidVideoPlayer: React.FC = () => {
         <PlayerControls
           showControls={playerState.showControls}
           fadeAnim={fadeAnim}
-          paused={playerState.paused}
+          paused={chromecast.isCasting ? (chromecast.castPlayerState !== 'playing') : playerState.paused}
           title={title}
           episodeTitle={episodeTitle}
           season={season}
@@ -1098,15 +1167,15 @@ const AndroidVideoPlayer: React.FC = () => {
           year={year}
           streamProvider={currentStreamProvider || streamProvider}
           streamName={currentStreamName}
-          currentTime={playerState.currentTime}
+          currentTime={chromecast.isCasting ? (chromecast.castStreamPosition ?? 0) : playerState.currentTime}
           duration={playerState.duration}
           zoomScale={1}
           currentResizeMode={playerState.resizeMode}
           ksAudioTracks={tracksHook.ksAudioTracks}
           selectedAudioTrack={tracksHook.computedSelectedAudioTrack}
           availableStreams={availableStreams}
-          togglePlayback={controlsHook.togglePlayback}
-          skip={controlsHook.skip}
+          togglePlayback={effectiveTogglePlayback}
+          skip={effectiveSkip}
           handleClose={handleClose}
           cycleAspectRatio={cycleResizeMode}
           cyclePlaybackSpeed={() => {
@@ -1127,7 +1196,7 @@ const AndroidVideoPlayer: React.FC = () => {
           onSlidingStart={() => { playerState.isDragging.current = true; }}
           onSlidingComplete={(val) => {
             playerState.isDragging.current = false;
-            controlsHook.seekToTime(val);
+            effectiveSeekToTime(val);
           }}
           buffered={playerState.buffered}
           formatTime={formatTime}
@@ -1136,6 +1205,8 @@ const AndroidVideoPlayer: React.FC = () => {
           useExoPlayer={useExoPlayer}
           canEnterPictureInPicture={canShowPipButton}
           onEnterPictureInPicture={handleEnterPictureInPicture}
+          isCasting={chromecast.isCasting}
+          onCastPress={handleCastPress}
           isBuffering={playerState.isBuffering}
           imdbId={resolvedImdbId}
         />
@@ -1181,7 +1252,7 @@ const AndroidVideoPlayer: React.FC = () => {
           releaseDate={releaseDate}
           skipIntervals={skipIntervals}
           currentTime={playerState.currentTime}
-          onSkip={(endTime) => controlsHook.seekToTime(endTime)}
+          onSkip={(endTime) => effectiveSeekToTime(endTime)}
           controlsVisible={playerState.showControls}
           controlsFixedOffset={100}
         />

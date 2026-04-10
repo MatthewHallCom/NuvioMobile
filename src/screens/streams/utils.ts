@@ -198,6 +198,42 @@ export const sortStreamsByQuality = (streams: Stream[]): Stream[] => {
 };
 
 /**
+ * Check if a stream is Chromecast-compatible (whitelist approach).
+ * Only allows codecs/containers known to work on all Chromecast devices:
+ *   Video codecs: H.264/x264, VP8, VP9
+ *   Containers: MP4, WebM, HLS (m3u8), DASH (mpd)
+ *
+ * Streams with no detectable codec info are treated as compatible (benefit of the doubt).
+ * Streams with a detected codec that is NOT in the whitelist are filtered out.
+ */
+export const isChromecastCompatible = (stream: Stream): boolean => {
+  const sources = [
+    stream.url,
+    stream.title,
+    stream.name,
+    stream.behaviorHints?.filename,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (!sources) return true;
+
+  // Incompatible containers — always reject
+  if (/\.mkv(\b|$)/.test(sources) || /\bmkv\b/.test(sources)) return false;
+  if (/\.avi(\b|$)/.test(sources) || /\bavi\b/.test(sources)) return false;
+
+  // If we can detect a codec, only allow whitelisted ones
+  const hasCodecInfo = /\b(h[.\s]?26[45]|x[.\s]?26[45]|hevc|avc|vp[89]|xvid|divx|mpeg[24]|av1)\b/.test(sources);
+
+  if (hasCodecInfo) {
+    // Whitelisted codecs that work on all Chromecast devices
+    const isCompatibleCodec = /\b(h[.\s]?264|x[.\s]?264|avc|vp8|vp9)\b/.test(sources);
+    return isCompatibleCodec;
+  }
+
+  // No codec detected — allow (benefit of the doubt)
+  return true;
+};
+
+/**
  * Infer video type from URL
  */
 export const inferVideoTypeFromUrl = (url?: string): string | undefined => {

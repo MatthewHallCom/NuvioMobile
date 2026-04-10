@@ -56,7 +56,9 @@ export const StreamsScreen = () => {
     handleStreamPress,
     sizeSortMode,
     handleSizeSortChange,
-    
+    chromecastFilter,
+    handleChromecastFilterChange,
+
     // Loading states
     loadingStreams,
     loadingEpisodeStreams,
@@ -133,6 +135,8 @@ export const StreamsScreen = () => {
             handleProviderChange={handleProviderChange}
             sizeSortMode={sizeSortMode}
             handleSizeSortChange={handleSizeSortChange}
+            chromecastFilter={chromecastFilter}
+            handleChromecastFilterChange={handleChromecastFilterChange}
             activeFetchingScrapers={activeFetchingScrapers}
             isAutoplayWaiting={isAutoplayWaiting}
             autoplayTriggered={autoplayTriggered}
@@ -188,6 +192,8 @@ export const StreamsScreen = () => {
             handleProviderChange={handleProviderChange}
             sizeSortMode={sizeSortMode}
             handleSizeSortChange={handleSizeSortChange}
+            chromecastFilter={chromecastFilter}
+            handleChromecastFilterChange={handleChromecastFilterChange}
             handleStreamPress={handleStreamPress}
             loadingProviders={loadingProviders}
             loadingStreams={loadingStreams}
