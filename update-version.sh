@@ -136,7 +136,7 @@ print_success "Updated Info.plist"
 # Update Android build.gradle
 print_status "Updating Android build.gradle..."
 # Update versionCode in defaultConfig section
-sed -i '' "s/versionCode [0-9]*/versionCode $NEW_BUILD_NUMBER/g" "$ANDROID_BUILD_GRADLE"
+sed -E -i '' "s/versionCode [0-9]+/versionCode $NEW_BUILD_NUMBER/g" "$ANDROID_BUILD_GRADLE"
 # Update versionName in defaultConfig section
 sed -i '' "s/versionName \"[^\"]*\"/versionName \"$NEW_VERSION\"/g" "$ANDROID_BUILD_GRADLE"
 # Update baseVersionCode in the split APK section (should match versionCode)
